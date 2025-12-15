@@ -5,18 +5,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const languageInstructions: Record<string, string> = {
+  en: "Respond in English.",
+  he: "Respond in Hebrew (עברית). Write right-to-left.",
+  ar: "Respond in Arabic (العربية). Write right-to-left.",
+  es: "Respond in Spanish (Español).",
+  fr: "Respond in French (Français).",
+  ru: "Respond in Russian (Русский).",
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { question, context } = await req.json();
+    const { question, context, language = 'en' } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    const langInstruction = languageInstructions[language] || languageInstructions.en;
 
     const systemPrompt = `You are a homework helper AI. Your job is to provide direct, concise answers to homework questions WITHOUT lengthy explanations. 
 
@@ -28,6 +39,8 @@ Rules:
 - Do NOT give lectures or teach
 - Be helpful but extremely brief
 - Format answers cleanly with proper line breaks
+
+${langInstruction}
 
 The user may provide additional context about their homework. Use it if helpful.`;
 
