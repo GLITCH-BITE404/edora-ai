@@ -1,0 +1,4 @@
+project_id = "wpjhjyuadfnaurfpssyw"
+
+[functions.homework-helper]
+verify_jwt = false
