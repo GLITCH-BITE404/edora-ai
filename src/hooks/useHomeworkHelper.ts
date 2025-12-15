@@ -12,7 +12,7 @@ export function useHomeworkHelper() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendQuestion = useCallback(async (question: string, context?: string, language: string = 'en') => {
+  const sendQuestion = useCallback(async (question: string, context?: string) => {
     if (!question.trim()) return;
 
     setError(null);
@@ -29,7 +29,7 @@ export function useHomeworkHelper() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ question, context, language }),
+        body: JSON.stringify({ question, context }),
       });
 
       if (!resp.ok) {
@@ -90,7 +90,7 @@ export function useHomeworkHelper() {
     } catch (err) {
       console.error('Homework helper error:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong');
-      setMessages(prev => prev.slice(0, -1));
+      setMessages(prev => prev.slice(0, -1)); // Remove user message on error
     } finally {
       setIsLoading(false);
     }

@@ -4,21 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
 import { useToast } from '@/hooks/use-toast';
-import { LanguageSelector, LanguageCode } from './LanguageSelector';
 
-interface HomeworkChatProps {
-  language: LanguageCode;
-}
-
-export function HomeworkChat({ language }: HomeworkChatProps) {
+export function HomeworkChat() {
   const [input, setInput] = useState('');
   const [context, setContext] = useState('');
   const [showContext, setShowContext] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { messages, isLoading, error, sendQuestion, clearMessages } = useHomeworkHelper();
   const { toast } = useToast();
-
-  const isRTL = language === 'he' || language === 'ar';
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -37,7 +30,7 @@ export function HomeworkChat({ language }: HomeworkChatProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-    sendQuestion(input.trim(), context.trim() || undefined, language);
+    sendQuestion(input.trim(), context.trim() || undefined);
     setInput('');
   };
 
@@ -88,7 +81,6 @@ export function HomeworkChat({ language }: HomeworkChatProps) {
           <div
             key={i}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            dir={isRTL && msg.role === 'assistant' ? 'rtl' : 'ltr'}
           >
             <div
               className={`max-w-[85%] rounded-2xl px-4 py-3 ${
