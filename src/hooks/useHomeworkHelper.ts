@@ -12,7 +12,7 @@ export function useHomeworkHelper() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendQuestion = useCallback(async (question: string, context?: string) => {
+  const sendQuestion = useCallback(async (question: string, context?: string, language?: string) => {
     if (!question.trim()) return;
 
     setError(null);
@@ -29,7 +29,7 @@ export function useHomeworkHelper() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ question, context }),
+        body: JSON.stringify({ question, context, language }),
       });
 
       if (!resp.ok) {

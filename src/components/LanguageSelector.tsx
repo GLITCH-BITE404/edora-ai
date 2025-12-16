@@ -19,19 +19,22 @@ export const LanguageSelector = ({ centered = false }: LanguageSelectorProps) =>
 
   if (centered) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-6 p-8 rounded-2xl bg-card border border-border shadow-2xl">
-          <h2 className="text-xl font-semibold text-foreground">{t('selectLanguage')}</h2>
-          <div className="flex gap-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-8 p-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-foreground mb-2">Edora AI</h1>
+            <p className="text-muted-foreground">{t('selectLanguage')}</p>
+          </div>
+          <div className="flex gap-3">
             {languages.map((lang) => (
               <button
                 key={lang.code}
                 onClick={() => setLanguage(lang.code)}
                 className={cn(
-                  'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200',
-                  'hover:border-primary hover:bg-primary/10',
+                  'flex flex-col items-center gap-2 p-5 rounded-2xl border-2 transition-all duration-200',
+                  'hover:border-primary hover:scale-105',
                   language === lang.code
-                    ? 'border-primary bg-primary/10'
+                    ? 'border-primary bg-primary/5'
                     : 'border-border bg-card'
                 )}
               >
@@ -48,23 +51,20 @@ export const LanguageSelector = ({ centered = false }: LanguageSelectorProps) =>
   // Compact version for corner
   return (
     <div className="relative group">
-      <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border hover:border-primary transition-colors">
-        <span className="text-xl">{languages.find((l) => l.code === language)?.flag}</span>
-        <span className="text-sm text-muted-foreground">
-          {languages.find((l) => l.code === language)?.name}
-        </span>
+      <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors">
+        <span className="text-lg">{languages.find((l) => l.code === language)?.flag}</span>
       </button>
-      <div className="absolute top-full left-0 mt-2 hidden group-hover:flex flex-col bg-card border border-border rounded-lg shadow-xl overflow-hidden z-50">
+      <div className="absolute top-full right-0 mt-1 hidden group-hover:flex flex-col bg-card border border-border rounded-xl shadow-xl overflow-hidden z-50 min-w-[140px]">
         {languages.map((lang) => (
           <button
             key={lang.code}
             onClick={() => setLanguage(lang.code)}
             className={cn(
-              'flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition-colors',
-              language === lang.code && 'bg-primary/10'
+              'flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted transition-colors text-left',
+              language === lang.code && 'bg-muted'
             )}
           >
-            <span className="text-xl">{lang.flag}</span>
+            <span className="text-lg">{lang.flag}</span>
             <span className="text-sm text-foreground">{lang.name}</span>
           </button>
         ))}
