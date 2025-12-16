@@ -3,6 +3,7 @@
 Edora AI is a web-based homework and learning assistant built to help students work smarter, not harder.  
 The project focuses on clean UX, fast responses, and support for multiple languages and file-based inputs.
 
+(credit me if you copy the LLM)
 **Live app:**  
 https://edora-ai.lovable.app
 
