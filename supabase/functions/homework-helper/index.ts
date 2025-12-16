@@ -11,29 +11,38 @@ serve(async (req) => {
   }
 
   try {
-    const { question, context } = await req.json();
+    const { question, context, language = 'English' } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are a homework helper AI. Your job is to provide direct, concise answers to homework questions WITHOUT lengthy explanations. 
+    const systemPrompt = `You are Edora AI, a smart and friendly study assistant. You MUST respond primarily in ${language}.
 
-Rules:
-- Give the answer directly and clearly
-- If it's a math problem, show the final answer and minimal steps
-- If it's a question, give the answer in 1-3 sentences max
-- Do NOT explain concepts in detail
-- Do NOT give lectures or teach
-- Be helpful but extremely brief
-- Format answers cleanly with proper line breaks
+Your behavior:
+- Always respond in ${language} (you can include technical terms in English if needed)
+- Understand vague or short questions and figure out what the user needs
+- Give direct, clear answers without unnecessary explanations
+- For math: show the answer and key steps only
+- For questions: answer in 1-3 sentences max
+- Be smart about context - if something seems like homework, help solve it
+- Format your answers cleanly
+- Be friendly but concise
 
-The user may provide additional context about their homework. Use it if helpful.`;
+Examples of understanding vague questions:
+- "5+3" → Just calculate and respond
+- "capital france" → Understand they're asking about France's capital
+- "photosynthesis" → Give a brief definition
+- "solve x+2=5" → Solve it directly
+
+Remember: Respond in ${language}, be helpful, be brief.`;
 
     const userMessage = context 
-      ? `Context from my homework:\n${context}\n\nQuestion: ${question}`
+      ? `[Context from homework]\n${context}\n\n[Question]\n${question}`
       : question;
+
+    console.log(`Processing request in ${language}:`, question.substring(0, 100));
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,13 +62,13 @@ The user may provide additional context about their homework. Use it if helpful.
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }), {
+        return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please try again later." }), {
+        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -76,7 +85,7 @@ The user may provide additional context about their homework. Use it if helpful.
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {
-    console.error("Homework helper error:", error);
+    console.error("Edora AI error:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

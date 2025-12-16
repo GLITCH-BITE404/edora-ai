@@ -7,49 +7,65 @@ interface LanguageContextType {
   setLanguage: (lang: Language) => void;
   hasSelectedLanguage: boolean;
   t: (key: string) => string;
+  languageName: string;
 }
 
 const translations: Record<Language, Record<string, string>> = {
   en: {
-    title: 'Homework Helper',
-    subtitle: 'Quick answers, no fluff',
-    placeholder: 'Type your homework question...',
-    contextPlaceholder: 'Optional: paste additional context...',
+    title: 'Edora AI',
+    subtitle: 'Your smart study companion',
+    placeholder: 'Ask me anything...',
+    contextPlaceholder: 'Paste homework text here...',
     send: 'Send',
-    uploadFile: 'Upload .txt or .md file',
+    uploadFile: 'Upload file',
     thinking: 'Thinking...',
-    selectLanguage: 'Select your language',
+    selectLanguage: 'Choose your language',
+    welcome: 'Hi! How can I help?',
+    welcomeSub: 'Ask a question or paste your homework',
   },
   he: {
-    title: 'עוזר שיעורי בית',
-    subtitle: 'תשובות מהירות, בלי סיבוכים',
-    placeholder: 'הקלד את שאלת שיעורי הבית שלך...',
-    contextPlaceholder: 'אופציונלי: הדבק הקשר נוסף...',
+    title: 'Edora AI',
+    subtitle: 'העוזר החכם שלך',
+    placeholder: 'שאל אותי הכל...',
+    contextPlaceholder: 'הדבק כאן טקסט משיעורי בית...',
     send: 'שלח',
-    uploadFile: 'העלה קובץ .txt או .md',
+    uploadFile: 'העלה קובץ',
     thinking: 'חושב...',
-    selectLanguage: 'בחר את השפה שלך',
+    selectLanguage: 'בחר שפה',
+    welcome: 'היי! איך אני יכול לעזור?',
+    welcomeSub: 'שאל שאלה או הדבק שיעורי בית',
   },
   ru: {
-    title: 'Помощник с домашкой',
-    subtitle: 'Быстрые ответы, без лишнего',
-    placeholder: 'Введите ваш вопрос...',
-    contextPlaceholder: 'Опционально: вставьте дополнительный контекст...',
+    title: 'Edora AI',
+    subtitle: 'Твой умный помощник',
+    placeholder: 'Спроси что угодно...',
+    contextPlaceholder: 'Вставьте текст домашки...',
     send: 'Отправить',
-    uploadFile: 'Загрузить .txt или .md файл',
+    uploadFile: 'Загрузить файл',
     thinking: 'Думаю...',
     selectLanguage: 'Выберите язык',
+    welcome: 'Привет! Чем помочь?',
+    welcomeSub: 'Задай вопрос или вставь домашку',
   },
   ar: {
-    title: 'مساعد الواجبات',
-    subtitle: 'إجابات سريعة، بدون تعقيد',
-    placeholder: 'اكتب سؤال واجبك...',
-    contextPlaceholder: 'اختياري: الصق سياق إضافي...',
+    title: 'Edora AI',
+    subtitle: 'مساعدك الذكي',
+    placeholder: 'اسألني أي شيء...',
+    contextPlaceholder: 'الصق نص الواجب هنا...',
     send: 'إرسال',
-    uploadFile: 'تحميل ملف .txt أو .md',
-    thinking: 'جاري التفكير...',
+    uploadFile: 'تحميل ملف',
+    thinking: 'أفكر...',
     selectLanguage: 'اختر لغتك',
+    welcome: 'مرحبا! كيف أساعدك؟',
+    welcomeSub: 'اطرح سؤالاً أو الصق واجبك',
   },
+};
+
+const languageNames: Record<Language, string> = {
+  en: 'English',
+  he: 'Hebrew',
+  ru: 'Russian',
+  ar: 'Arabic',
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -59,7 +75,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [hasSelectedLanguage, setHasSelectedLanguage] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('homework-helper-language');
+    const saved = localStorage.getItem('edora-language');
     if (saved && ['en', 'he', 'ru', 'ar'].includes(saved)) {
       setLanguageState(saved as Language);
       setHasSelectedLanguage(true);
@@ -69,13 +85,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     setHasSelectedLanguage(true);
-    localStorage.setItem('homework-helper-language', lang);
+    localStorage.setItem('edora-language', lang);
   };
 
   const t = (key: string) => translations[language][key] || key;
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, hasSelectedLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, hasSelectedLanguage, t, languageName: languageNames[language] }}>
       {children}
     </LanguageContext.Provider>
   );

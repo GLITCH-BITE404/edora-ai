@@ -11,24 +11,21 @@ const Index = () => {
       {/* Language selector overlay */}
       <LanguageSelector centered />
 
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
+      {/* Header - minimal */}
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold gradient-text">{t('title')}</h1>
-              <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
-            </div>
+            <span className="text-lg font-semibold text-foreground">{t('title')}</span>
           </div>
           <LanguageSelector />
         </div>
       </header>
 
       {/* Main chat area */}
-      <main className="flex-1 container mx-auto max-w-3xl">
+      <main className="flex-1 container mx-auto max-w-2xl">
         <HomeworkChat />
       </main>
     </div>
