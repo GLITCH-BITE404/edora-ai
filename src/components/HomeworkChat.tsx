@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function HomeworkChat() {
   const [input, setInput] = useState('');
@@ -12,6 +13,7 @@ export function HomeworkChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { messages, isLoading, error, sendQuestion, clearMessages } = useHomeworkHelper();
   const { toast } = useToast();
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -60,7 +62,7 @@ export function HomeworkChat() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" dir={language === 'he' || language === 'ar' ? 'rtl' : 'ltr'}>
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
@@ -69,9 +71,9 @@ export function HomeworkChat() {
               <FileText className="w-10 h-10 text-primary-foreground" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold gradient-text">Ask anything</h2>
+              <h2 className="text-2xl font-bold gradient-text">{t('title')}</h2>
               <p className="text-muted-foreground max-w-md">
-                Paste your homework question or upload a text file. I'll give you direct answers.
+                {t('placeholder')}
               </p>
             </div>
           </div>
@@ -98,8 +100,9 @@ export function HomeworkChat() {
 
         {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
-            <div className="glass rounded-2xl px-4 py-3">
+            <div className="glass rounded-2xl px-4 py-3 flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">{t('thinking')}</span>
             </div>
           </div>
         )}
@@ -126,7 +129,7 @@ export function HomeworkChat() {
           <Textarea
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            placeholder="Paste homework content here..."
+            placeholder={t('contextPlaceholder')}
             className="min-h-[80px] text-sm resize-none"
           />
         </div>
@@ -148,7 +151,7 @@ export function HomeworkChat() {
               variant="outline"
               size="icon"
               onClick={() => document.getElementById('file-upload')?.click()}
-              title="Upload text file"
+              title={t('uploadFile')}
             >
               <Upload className="w-4 h-4" />
             </Button>
@@ -178,7 +181,7 @@ export function HomeworkChat() {
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask your homework question..."
+            placeholder={t('placeholder')}
             className="min-h-[44px] max-h-[120px] resize-none flex-1"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
