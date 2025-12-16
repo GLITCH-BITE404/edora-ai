@@ -1,18 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Upload, X, Loader2, Sparkles, FileText } from 'lucide-react';
+import { Send, Trash2, Upload, X, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { MessageContent, CopyButton } from '@/components/MessageContent';
-import { extractTextFromPDF } from '@/lib/pdf-utils';
 
 export function HomeworkChat() {
   const [input, setInput] = useState('');
   const [context, setContext] = useState('');
   const [showContext, setShowContext] = useState(false);
-  const [fileName, setFileName] = useState('');
-  const [isLoadingFile, setIsLoadingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { messages, isLoading, error, sendQuestion, clearMessages } = useHomeworkHelper();
@@ -40,49 +36,25 @@ export function HomeworkChat() {
     setInput('');
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-    const isText = file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md');
-
-    if (isPDF) {
-      setIsLoadingFile(true);
-      try {
-        const text = await extractTextFromPDF(file);
-        setContext(text);
-        setFileName(file.name);
-        setShowContext(true);
-        toast({ description: `📄 ${file.name} loaded` });
-      } catch (err) {
-        console.error('PDF error:', err);
-        toast({
-          description: 'Could not read PDF',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoadingFile(false);
-      }
-    } else if (isText) {
+    if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
         setContext(text);
-        setFileName(file.name);
         setShowContext(true);
-        toast({ description: `📄 ${file.name} loaded` });
+        toast({ description: `📄 ${file.name}` });
       };
       reader.readAsText(file);
     } else {
       toast({
-        description: 'Supports .txt, .md, and .pdf files',
+        description: 'Only .txt or .md files',
         variant: 'destructive',
       });
     }
-    
-    // Reset file input
-    e.target.value = '';
   };
 
   const isRTL = language === 'he' || language === 'ar';
@@ -107,17 +79,15 @@ export function HomeworkChat() {
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`group relative max-w-[85%] rounded-2xl px-4 py-2.5 ${
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
                 msg.role === 'user'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted/80'
               }`}
             >
-              <MessageContent content={msg.content} isUser={msg.role === 'user'} />
-              <CopyButton 
-                text={msg.content} 
-                className={`absolute -bottom-1 ${isRTL ? '-left-8' : '-right-8'}`}
-              />
+              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                {msg.content}
+              </pre>
             </div>
           </div>
         ))}
@@ -138,15 +108,12 @@ export function HomeworkChat() {
       {showContext && (
         <div className="border-t border-border px-4 py-3 bg-muted/30">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">{fileName || 'Context'}</span>
-            </div>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Context</span>
             <Button
               variant="ghost"
               size="sm"
               className="h-6 w-6 p-0"
-              onClick={() => { setContext(''); setShowContext(false); setFileName(''); }}
+              onClick={() => { setContext(''); setShowContext(false); }}
             >
               <X className="w-3 h-3" />
             </Button>
@@ -165,7 +132,7 @@ export function HomeworkChat() {
         <div className="flex items-center gap-2">
           <input
             type="file"
-            accept=".txt,.md,.pdf"
+            accept=".txt,.md"
             onChange={handleFileUpload}
             className="hidden"
             id="file-upload"
@@ -196,13 +163,8 @@ export function HomeworkChat() {
               className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
               onClick={() => document.getElementById('file-upload')?.click()}
               title={t('uploadFile')}
-              disabled={isLoadingFile}
             >
-              {isLoadingFile ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
+              <Upload className="w-4 h-4" />
             </Button>
             
             {messages.length > 0 && (
