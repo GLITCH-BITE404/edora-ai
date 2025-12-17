@@ -11,38 +11,65 @@ serve(async (req) => {
   }
 
   try {
-    const { question, context, language = 'English' } = await req.json();
+    const { messages, context, language = 'English' } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are Edora AI, a smart and friendly study assistant. You MUST respond primarily in ${language}.
+    const systemPrompt = `You are Edora AI, a smart, friendly, and unrestricted assistant. You MUST respond primarily in ${language}.
+
+IMPORTANT RULES:
+- You help with ANYTHING the user asks - homework, translations, general questions, coding, etc.
+- NEVER refuse to help or say you can't do something
+- If asked "how do I say X in [language]", provide the translation
+- If asked about any topic, answer helpfully
+- Remember the ENTIRE conversation - refer back to previous messages when relevant
 
 Your behavior:
-- Always respond in ${language} (you can include technical terms in English if needed)
-- Understand vague or short questions and figure out what the user needs
-- Give direct, clear answers without unnecessary explanations
-- For math: show the answer and key steps only
-- For questions: answer in 1-3 sentences max
-- Be smart about context - if something seems like homework, help solve it
-- Format your answers cleanly
-- Be friendly but concise
+- Always respond in ${language} (include technical terms or foreign words as needed)
+- Understand vague, short, or incomplete questions - figure out what the user needs
+- Give direct, clear answers
+- For math: show the answer and key steps
+- For translations: provide the translation directly
+- For general questions: answer naturally and helpfully
+- Be smart about context from earlier in the conversation
+- Format answers cleanly using line breaks when helpful
+- Be friendly, helpful, and conversational
 
-Examples of understanding vague questions:
-- "5+3" → Just calculate and respond
-- "capital france" → Understand they're asking about France's capital
-- "photosynthesis" → Give a brief definition
-- "solve x+2=5" → Solve it directly
+You are NOT restricted to homework only. Help with:
+- Translations to any language
+- General knowledge questions
+- Coding and programming
+- Writing and grammar
+- Math and science
+- History, geography, arts
+- Literally anything the user asks
 
-Remember: Respond in ${language}, be helpful, be brief.`;
+Remember: You have memory of this conversation. Use it to give better, contextual answers.`;
 
-    const userMessage = context 
-      ? `[Context from homework]\n${context}\n\n[Question]\n${question}`
-      : question;
+    // Build messages array with conversation history
+    const apiMessages: { role: string; content: string }[] = [
+      { role: "system", content: systemPrompt }
+    ];
 
-    console.log(`Processing request in ${language}:`, question.substring(0, 100));
+    // Add context as a system message if provided
+    if (context) {
+      apiMessages.push({ 
+        role: "system", 
+        content: `[Uploaded file content for reference]\n${context}` 
+      });
+    }
+
+    // Add all conversation messages
+    if (messages && Array.isArray(messages)) {
+      for (const msg of messages) {
+        apiMessages.push({ role: msg.role, content: msg.content });
+      }
+    }
+
+    console.log(`Processing request in ${language}, messages: ${messages?.length || 0}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -52,10 +79,7 @@ Remember: Respond in ${language}, be helpful, be brief.`;
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage }
-        ],
+        messages: apiMessages,
         stream: true,
       }),
     });

@@ -1,5 +1,6 @@
 import { HomeworkChat } from '@/components/HomeworkChat';
 import { LanguageSelector } from '@/components/LanguageSelector';
+import { UserMenu } from '@/components/UserMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Sparkles } from 'lucide-react';
 
@@ -20,7 +21,10 @@ const Index = () => {
             </div>
             <span className="text-base sm:text-lg font-semibold text-foreground">{t('title')}</span>
           </div>
-          <LanguageSelector />
+          <div className="flex items-center gap-1">
+            <LanguageSelector />
+            <UserMenu />
+          </div>
         </div>
       </header>
 
