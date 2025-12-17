@@ -7,25 +7,25 @@ const Index = () => {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       {/* Language selector overlay */}
       <LanguageSelector centered />
 
       {/* Header - minimal */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+        <div className="px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between max-w-4xl mx-auto w-full">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-semibold text-foreground">{t('title')}</span>
+            <span className="text-base sm:text-lg font-semibold text-foreground">{t('title')}</span>
           </div>
           <LanguageSelector />
         </div>
       </header>
 
       {/* Main chat area */}
-      <main className="flex-1 container mx-auto max-w-2xl">
+      <main className="flex-1 min-h-0 w-full max-w-4xl mx-auto">
         <HomeworkChat />
       </main>
     </div>

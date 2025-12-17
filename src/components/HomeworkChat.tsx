@@ -126,14 +126,14 @@ export function HomeworkChat() {
   return (
     <div className="flex flex-col h-full" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-4">
-              <Sparkles className="w-8 h-8 text-primary-foreground" />
+          <div className="flex flex-col items-center justify-center h-full text-center py-8 sm:py-12 px-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-3 sm:mb-4">
+              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary-foreground" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-1">{t('welcome')}</h2>
-            <p className="text-sm text-muted-foreground">{t('welcomeSub')}</p>
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-1">{t('welcome')}</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-xs">{t('welcomeSub')}</p>
           </div>
         )}
 
@@ -142,22 +142,22 @@ export function HomeworkChat() {
             key={i}
             className={`group flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div className="relative">
+            <div className="relative max-w-[90%] sm:max-w-[85%]">
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                className={`rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 ${
                   msg.role === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted/80'
                 }`}
               >
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed break-words">
                   {msg.content}
                 </pre>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className={`absolute -bottom-1 ${msg.role === 'user' ? '-left-8' : '-right-8'} h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity`}
+                className={`absolute -bottom-1 ${msg.role === 'user' ? '-left-7 sm:-left-8' : '-right-7 sm:-right-8'} h-5 w-5 sm:h-6 sm:w-6 opacity-0 group-hover:opacity-100 transition-opacity`}
                 onClick={() => handleCopy(msg.content, i)}
               >
                 {copiedIndex === i ? (
@@ -172,7 +172,7 @@ export function HomeworkChat() {
 
         {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
-            <div className="bg-muted/80 rounded-2xl px-4 py-2.5 flex items-center gap-2">
+            <div className="bg-muted/80 rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
               <span className="text-sm text-muted-foreground">{t('thinking')}</span>
             </div>
@@ -184,7 +184,7 @@ export function HomeworkChat() {
 
       {/* Context panel */}
       {showContext && (
-        <div className="border-t border-border px-4 py-3 bg-muted/30">
+        <div className="border-t border-border px-3 sm:px-4 py-2 sm:py-3 bg-muted/30 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Context</span>
             <Button
@@ -200,14 +200,14 @@ export function HomeworkChat() {
             value={context}
             onChange={(e) => setContext(e.target.value)}
             placeholder={t('contextPlaceholder')}
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none h-20 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none h-16 sm:h-20 focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
       )}
 
       {/* Input area - clean and simple */}
-      <form onSubmit={handleSubmit} className="border-t border-border p-4">
-        <div className="flex items-center gap-2">
+      <form onSubmit={handleSubmit} className="border-t border-border p-3 sm:p-4 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <input
             type="file"
             accept=".txt,.md,.pdf"
@@ -223,7 +223,7 @@ export function HomeworkChat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t('placeholder')}
-              className="w-full bg-muted/50 border border-border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+              className="w-full bg-muted/50 border border-border rounded-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -233,12 +233,12 @@ export function HomeworkChat() {
             />
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-foreground"
               onClick={() => document.getElementById('file-upload')?.click()}
               title={t('uploadFile')}
             >
@@ -250,7 +250,7 @@ export function HomeworkChat() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-foreground"
                 onClick={clearMessages}
               >
                 <Trash2 className="w-4 h-4" />
@@ -261,7 +261,7 @@ export function HomeworkChat() {
               type="submit"
               disabled={!input.trim() || isLoading}
               size="icon"
-              className="h-9 w-9 rounded-full"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
