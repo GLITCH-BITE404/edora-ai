@@ -4,10 +4,25 @@ import { Button } from '@/components/ui/button';
 import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// Set worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Dynamically load PDF.js from CDN
+const loadPdfJs = async () => {
+  if ((window as unknown as { pdfjsLib?: unknown }).pdfjsLib) {
+    return (window as unknown as { pdfjsLib: typeof import('pdfjs-dist') }).pdfjsLib;
+  }
+  
+  return new Promise<typeof import('pdfjs-dist')>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      const pdfjsLib = (window as unknown as { pdfjsLib: typeof import('pdfjs-dist') }).pdfjsLib;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(pdfjsLib);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
 
 export function HomeworkChat() {
   const [input, setInput] = useState('');
@@ -52,6 +67,7 @@ export function HomeworkChat() {
   };
 
   const extractPdfText = async (file: File): Promise<string> => {
+    const pdfjsLib = await loadPdfJs();
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
