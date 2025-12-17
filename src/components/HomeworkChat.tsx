@@ -1,14 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Upload, X, Loader2, Sparkles } from 'lucide-react';
+import { Send, Trash2, Upload, X, Loader2, Sparkles, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set worker source
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export function HomeworkChat() {
   const [input, setInput] = useState('');
   const [context, setContext] = useState('');
   const [showContext, setShowContext] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { messages, isLoading, error, sendQuestion, clearMessages } = useHomeworkHelper();
@@ -36,11 +41,41 @@ export function HomeworkChat() {
     setInput('');
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCopy = async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch {
+      toast({ description: 'Failed to copy', variant: 'destructive' });
+    }
+  };
+
+  const extractPdfText = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: unknown) => (item as { str: string }).str)
+        .join(' ');
+      fullText += pageText + '\n';
+    }
+    
+    return fullText.trim();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+    const isText = file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md');
+    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+
+    if (isText) {
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
@@ -49,12 +84,25 @@ export function HomeworkChat() {
         toast({ description: `📄 ${file.name}` });
       };
       reader.readAsText(file);
+    } else if (isPdf) {
+      try {
+        toast({ description: `⏳ Processing ${file.name}...` });
+        const text = await extractPdfText(file);
+        setContext(text);
+        setShowContext(true);
+        toast({ description: `📄 ${file.name}` });
+      } catch {
+        toast({ description: 'Failed to read PDF', variant: 'destructive' });
+      }
     } else {
       toast({
-        description: 'Only .txt or .md files',
+        description: 'Only .txt, .md, or .pdf files',
         variant: 'destructive',
       });
     }
+    
+    // Reset input so same file can be selected again
+    e.target.value = '';
   };
 
   const isRTL = language === 'he' || language === 'ar';
@@ -76,18 +124,32 @@ export function HomeworkChat() {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`group flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                msg.role === 'user'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/80'
-              }`}
-            >
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                {msg.content}
-              </pre>
+            <div className="relative">
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                  msg.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/80'
+                }`}
+              >
+                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                  {msg.content}
+                </pre>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`absolute -bottom-1 ${msg.role === 'user' ? '-left-8' : '-right-8'} h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity`}
+                onClick={() => handleCopy(msg.content, i)}
+              >
+                {copiedIndex === i ? (
+                  <Check className="w-3 h-3 text-green-500" />
+                ) : (
+                  <Copy className="w-3 h-3 text-muted-foreground" />
+                )}
+              </Button>
             </div>
           </div>
         ))}
@@ -132,7 +194,7 @@ export function HomeworkChat() {
         <div className="flex items-center gap-2">
           <input
             type="file"
-            accept=".txt,.md"
+            accept=".txt,.md,.pdf"
             onChange={handleFileUpload}
             className="hidden"
             id="file-upload"
