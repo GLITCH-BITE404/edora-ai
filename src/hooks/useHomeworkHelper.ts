@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/homework-helper`;
 
-interface Message {
+export interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
@@ -17,19 +17,25 @@ export function useHomeworkHelper() {
 
     setError(null);
     const userMsg: Message = { role: 'user', content: question };
-    setMessages(prev => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setIsLoading(true);
 
     let assistantContent = '';
 
     try {
+      // Send the full conversation history to the API
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ question, context, language }),
+        body: JSON.stringify({ 
+          messages: updatedMessages, 
+          context, 
+          language 
+        }),
       });
 
       if (!resp.ok) {
@@ -94,7 +100,7 @@ export function useHomeworkHelper() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [messages]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
