@@ -92,17 +92,26 @@ const Index = () => {
     }
   };
 
+  const handleRenameChat = (id: string, newTitle: string) => {
+    setSessions(prev => prev.map(s => 
+      s.id === id ? { ...s, title: newTitle } : s
+    ));
+  };
+
   return (
     <div className="h-[100dvh] bg-background flex overflow-hidden">
-      {/* Chat Sidebar */}
-      <ChatSidebar
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onNewChat={handleNewChat}
-        onSelectChat={handleSelectChat}
-        onDeleteChat={handleDeleteChat}
-        isGuest={isGuest}
-      />
+      {/* Chat Sidebar - Only for logged in users */}
+      {!isGuest && (
+        <ChatSidebar
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          onNewChat={handleNewChat}
+          onSelectChat={handleSelectChat}
+          onDeleteChat={handleDeleteChat}
+          onRenameChat={handleRenameChat}
+          isGuest={isGuest}
+        />
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
