@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, Trash2, Menu, X } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Menu, X, Pencil, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ interface ChatSidebarProps {
   onNewChat: () => void;
   onSelectChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
+  onRenameChat: (id: string, newTitle: string) => void;
   isGuest: boolean;
 }
 
@@ -26,11 +27,33 @@ export function ChatSidebar({
   onNewChat,
   onSelectChat,
   onDeleteChat,
+  onRenameChat,
   isGuest,
 }: ChatSidebarProps) {
   const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
   const isRTL = language === 'he' || language === 'ar';
+
+  const startEditing = (session: ChatSession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(session.id);
+    setEditTitle(session.title);
+  };
+
+  const saveEdit = (id: string) => {
+    if (editTitle.trim()) {
+      onRenameChat(id, editTitle.trim());
+    }
+    setEditingId(null);
+    setEditTitle('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTitle('');
+  };
 
   return (
     <>
@@ -93,36 +116,70 @@ export function ChatSidebar({
                     : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
                 )}
                 onClick={() => {
-                  onSelectChat(session.id);
-                  setIsOpen(false);
+                  if (editingId !== session.id) {
+                    onSelectChat(session.id);
+                    setIsOpen(false);
+                  }
                 }}
               >
                 <MessageSquare className="w-4 h-4 shrink-0" />
-                <span className="flex-1 truncate text-sm">{session.title}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteChat(session.id);
-                  }}
-                >
-                  <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                </Button>
+                
+                {editingId === session.id ? (
+                  <div className="flex-1 flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEdit(session.id);
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        saveEdit(session.id);
+                      }}
+                    >
+                      <Check className="w-3 h-3 text-accent" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="flex-1 truncate text-sm">{session.title}</span>
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => startEditing(session, e)}
+                      >
+                        <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteChat(session.id);
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             ))
           )}
         </div>
-
-        {/* Guest indicator */}
-        {isGuest && (
-          <div className="p-3 border-t border-sidebar-border">
-            <p className="text-xs text-muted-foreground text-center">
-              {t('guestMode')}
-            </p>
-          </div>
-        )}
       </aside>
     </>
   );
