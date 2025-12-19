@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Trash2, Upload, X, Loader2, Sparkles, Copy, Check, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useHomeworkHelper, Message } from '@/hooks/useHomeworkHelper';
+import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { Message } from '@/hooks/useChatStorage';
 
 // Define pdfjsLib type
 interface PdfJsLib {
@@ -104,7 +105,8 @@ export function HomeworkChat({
       fullContext += `\n\n[User uploaded ${uploadedImages.length} image(s)]`;
     }
     
-    sendQuestion(input.trim(), fullContext || undefined, languageName);
+    // Pass images to be stored with the message
+    sendQuestion(input.trim(), fullContext || undefined, languageName, uploadedImages.length > 0 ? [...uploadedImages] : undefined);
     setInput('');
     setUploadedImages([]);
   };
@@ -239,6 +241,20 @@ export function HomeworkChat({
                     : 'bg-muted/80 hover:bg-muted'
                 }`}
               >
+                {/* Show attached images for user messages */}
+                {msg.role === 'user' && msg.images && msg.images.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {msg.images.map((img, imgIdx) => (
+                      <img 
+                        key={imgIdx}
+                        src={img} 
+                        alt={`Attached ${imgIdx + 1}`} 
+                        className="w-20 h-20 object-cover rounded-lg border border-primary-foreground/20"
+                      />
+                    ))}
+                  </div>
+                )}
+                
                 {msg.role === 'assistant' ? (
                   <MarkdownRenderer content={msg.content} />
                 ) : (

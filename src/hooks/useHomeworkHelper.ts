@@ -1,11 +1,7 @@
 import { useState, useCallback } from 'react';
+import { Message } from '@/hooks/useChatStorage';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/homework-helper`;
-
-export interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
 
 interface UseHomeworkHelperOptions {
   messages: Message[];
@@ -23,11 +19,11 @@ export function useHomeworkHelper({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendQuestion = useCallback(async (question: string, context?: string, language?: string) => {
+  const sendQuestion = useCallback(async (question: string, context?: string, language?: string, images?: string[]) => {
     if (!question.trim()) return;
 
     setError(null);
-    const userMsg: Message = { role: 'user', content: question };
+    const userMsg: Message = { role: 'user', content: question, images };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setIsLoading(true);
@@ -38,6 +34,9 @@ export function useHomeworkHelper({
     let assistantContent = '';
 
     try {
+      // Send messages without images to the API (images are just for display)
+      const apiMessages = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+      
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
@@ -45,7 +44,7 @@ export function useHomeworkHelper({
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ 
-          messages: updatedMessages, 
+          messages: apiMessages, 
           context, 
           language 
         }),

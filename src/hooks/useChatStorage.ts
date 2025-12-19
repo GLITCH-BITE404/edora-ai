@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -12,6 +12,7 @@ export interface ChatSession {
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
+  images?: string[];
 }
 
 export function useChatStorage(user: User | null) {
@@ -19,55 +20,10 @@ export function useChatStorage(user: User | null) {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
-
-  // Load user's chats from database
-  const loadChats = useCallback(async () => {
-    if (!user) {
-      setSessions([]);
-      setCurrentSessionId(null);
-      setMessages([]);
-      return;
-    }
-
-    setIsLoadingChats(true);
-    try {
-      const { data: chats, error } = await supabase
-        .from('chats')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-
-      const formattedSessions: ChatSession[] = (chats || []).map(chat => ({
-        id: chat.id,
-        title: chat.title,
-        createdAt: new Date(chat.created_at),
-        messageCount: 0,
-      }));
-
-      setSessions(formattedSessions);
-      
-      // If there are existing chats, load the most recent one
-      if (formattedSessions.length > 0) {
-        setCurrentSessionId(formattedSessions[0].id);
-        await loadMessages(formattedSessions[0].id);
-      } else {
-        // Start with empty state - new chat will be created on first message
-        setCurrentSessionId(null);
-        setMessages([]);
-      }
-    } catch (err) {
-      console.error('Error loading chats:', err);
-    } finally {
-      setIsLoadingChats(false);
-    }
-  }, [user]);
+  const loadedUserIdRef = useRef<string | null>(null);
 
   // Load messages for a specific chat
   const loadMessages = useCallback(async (chatId: string) => {
-    if (!user) return;
-
     try {
       const { data, error } = await supabase
         .from('messages')
@@ -86,14 +42,65 @@ export function useChatStorage(user: User | null) {
     } catch (err) {
       console.error('Error loading messages:', err);
     }
-  }, [user]);
+  }, []);
+
+  // Load user's chats from database
+  useEffect(() => {
+    const loadChats = async () => {
+      if (!user) {
+        setSessions([]);
+        setCurrentSessionId(null);
+        setMessages([]);
+        loadedUserIdRef.current = null;
+        return;
+      }
+
+      // Prevent duplicate loads for the same user
+      if (loadedUserIdRef.current === user.id) return;
+      loadedUserIdRef.current = user.id;
+
+      setIsLoadingChats(true);
+      try {
+        const { data: chats, error } = await supabase
+          .from('chats')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false });
+
+        if (error) throw error;
+
+        const formattedSessions: ChatSession[] = (chats || []).map(chat => ({
+          id: chat.id,
+          title: chat.title,
+          createdAt: new Date(chat.created_at),
+          messageCount: 0,
+        }));
+
+        setSessions(formattedSessions);
+        
+        // If there are existing chats, load the most recent one
+        if (formattedSessions.length > 0) {
+          setCurrentSessionId(formattedSessions[0].id);
+          await loadMessages(formattedSessions[0].id);
+        } else {
+          setCurrentSessionId(null);
+          setMessages([]);
+        }
+      } catch (err) {
+        console.error('Error loading chats:', err);
+      } finally {
+        setIsLoadingChats(false);
+      }
+    };
+
+    loadChats();
+  }, [user?.id, loadMessages]);
 
   // Create a new chat
   const createChat = useCallback(async (firstMessage: string): Promise<string | null> => {
     if (!user) return null;
 
     try {
-      // Generate title from first message (first 30 chars)
       const title = firstMessage.length > 30 
         ? firstMessage.substring(0, 30) + '...' 
         : firstMessage;
@@ -137,7 +144,6 @@ export function useChatStorage(user: User | null) {
         content: message.content,
       });
 
-      // Update chat's updated_at
       await supabase
         .from('chats')
         .update({ updated_at: new Date().toISOString() })
@@ -153,22 +159,26 @@ export function useChatStorage(user: User | null) {
 
     try {
       await supabase.from('chats').delete().eq('id', chatId);
-      setSessions(prev => prev.filter(s => s.id !== chatId));
       
-      if (currentSessionId === chatId) {
-        const remaining = sessions.filter(s => s.id !== chatId);
-        if (remaining.length > 0) {
-          setCurrentSessionId(remaining[0].id);
-          await loadMessages(remaining[0].id);
-        } else {
-          setCurrentSessionId(null);
-          setMessages([]);
+      setSessions(prev => {
+        const remaining = prev.filter(s => s.id !== chatId);
+        
+        if (currentSessionId === chatId) {
+          if (remaining.length > 0) {
+            setCurrentSessionId(remaining[0].id);
+            loadMessages(remaining[0].id);
+          } else {
+            setCurrentSessionId(null);
+            setMessages([]);
+          }
         }
-      }
+        
+        return remaining;
+      });
     } catch (err) {
       console.error('Error deleting chat:', err);
     }
-  }, [user, currentSessionId, sessions, loadMessages]);
+  }, [user, currentSessionId, loadMessages]);
 
   // Rename a chat
   const renameChat = useCallback(async (chatId: string, newTitle: string) => {
@@ -194,16 +204,11 @@ export function useChatStorage(user: User | null) {
     await loadMessages(chatId);
   }, [loadMessages]);
 
-  // Start a new chat (just clears current, actual chat created on first message)
+  // Start a new chat
   const startNewChat = useCallback(() => {
     setCurrentSessionId(null);
     setMessages([]);
   }, []);
-
-  // Load chats when user changes
-  useEffect(() => {
-    loadChats();
-  }, [loadChats]);
 
   return {
     sessions,
