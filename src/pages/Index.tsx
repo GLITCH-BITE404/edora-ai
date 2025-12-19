@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { HomeworkChat } from '@/components/HomeworkChat';
-import { ChatSidebar, ChatSession } from '@/components/ChatSidebar';
+import { ChatSidebar } from '@/components/ChatSidebar';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { UserMenu } from '@/components/UserMenu';
 import { GuestUpgradePopup } from '@/components/GuestUpgradePopup';
 import { LoginSuccessPopup } from '@/components/LoginSuccessPopup';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useChatStorage, Message } from '@/hooks/useChatStorage';
 import { supabase } from '@/integrations/supabase/client';
 import { Sparkles } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
@@ -13,20 +14,37 @@ import type { User } from '@supabase/supabase-js';
 const Index = () => {
   const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showGuestPopup, setShowGuestPopup] = useState(false);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  
+  // Guest state for local messages
+  const [guestMessages, setGuestMessages] = useState<Message[]>([]);
 
   const isGuest = !user;
   const imageLimit = isGuest ? 7 : 20;
 
+  // Use chat storage hook for logged-in users
+  const {
+    sessions,
+    currentSessionId,
+    messages: storedMessages,
+    setMessages: setStoredMessages,
+    createChat,
+    saveMessage,
+    deleteChat,
+    renameChat,
+    selectChat,
+    startNewChat,
+  } = useChatStorage(user);
+
+  // Use appropriate messages based on auth state
+  const messages = isGuest ? guestMessages : storedMessages;
+  const setMessages = isGuest ? setGuestMessages : setStoredMessages;
+
   useEffect(() => {
-    // Check auth state
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const newUser = session?.user ?? null;
       
-      // Show login success popup when user logs in
       if (event === 'SIGNED_IN' && newUser && !user) {
         setShowLoginPopup(true);
       }
@@ -51,52 +69,39 @@ const Index = () => {
     }
   }, [isGuest]);
 
-  // Initialize with a default session
-  useEffect(() => {
-    if (sessions.length === 0) {
-      const newSession: ChatSession = {
-        id: crypto.randomUUID(),
-        title: 'New Chat',
-        createdAt: new Date(),
-        messageCount: 0,
-      };
-      setSessions([newSession]);
-      setCurrentSessionId(newSession.id);
+  // Handle message sent - create chat if needed for logged-in users
+  const handleMessageSent = useCallback(async (message: Message) => {
+    if (isGuest) return;
+    
+    let chatId = currentSessionId;
+    
+    // Create new chat if no current session
+    if (!chatId) {
+      chatId = await createChat(message.content);
     }
-  }, [sessions.length]);
-
-  const handleNewChat = () => {
-    const newSession: ChatSession = {
-      id: crypto.randomUUID(),
-      title: 'New Chat',
-      createdAt: new Date(),
-      messageCount: 0,
-    };
-    setSessions(prev => [newSession, ...prev]);
-    setCurrentSessionId(newSession.id);
-  };
-
-  const handleSelectChat = (id: string) => {
-    setCurrentSessionId(id);
-  };
-
-  const handleDeleteChat = (id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-    if (currentSessionId === id) {
-      const remaining = sessions.filter(s => s.id !== id);
-      if (remaining.length > 0) {
-        setCurrentSessionId(remaining[0].id);
-      } else {
-        handleNewChat();
-      }
+    
+    if (chatId) {
+      await saveMessage(chatId, message);
     }
-  };
+  }, [isGuest, currentSessionId, createChat, saveMessage]);
 
-  const handleRenameChat = (id: string, newTitle: string) => {
-    setSessions(prev => prev.map(s => 
-      s.id === id ? { ...s, title: newTitle } : s
-    ));
-  };
+  // Handle assistant response
+  const handleAssistantResponse = useCallback(async (message: Message) => {
+    if (isGuest || !currentSessionId) return;
+    await saveMessage(currentSessionId, message);
+  }, [isGuest, currentSessionId, saveMessage]);
+
+  // Handle clear chat for guests
+  const handleClearChat = useCallback(() => {
+    if (isGuest) {
+      setGuestMessages([]);
+    }
+  }, [isGuest]);
+
+  // Handle new chat - ChatGPT style (just start fresh, create on first message)
+  const handleNewChat = useCallback(() => {
+    startNewChat();
+  }, [startNewChat]);
 
   return (
     <div className="h-[100dvh] bg-background flex overflow-hidden">
@@ -106,9 +111,9 @@ const Index = () => {
           sessions={sessions}
           currentSessionId={currentSessionId}
           onNewChat={handleNewChat}
-          onSelectChat={handleSelectChat}
-          onDeleteChat={handleDeleteChat}
-          onRenameChat={handleRenameChat}
+          onSelectChat={selectChat}
+          onDeleteChat={deleteChat}
+          onRenameChat={renameChat}
           isGuest={isGuest}
         />
       )}
@@ -136,7 +141,15 @@ const Index = () => {
 
         {/* Main chat area */}
         <main className="flex-1 min-h-0">
-          <HomeworkChat isGuest={isGuest} imageLimit={imageLimit} />
+          <HomeworkChat 
+            isGuest={isGuest} 
+            imageLimit={imageLimit}
+            messages={messages}
+            setMessages={setMessages}
+            onMessageSent={handleMessageSent}
+            onAssistantResponse={handleAssistantResponse}
+            onClearChat={handleClearChat}
+          />
         </main>
       </div>
 
