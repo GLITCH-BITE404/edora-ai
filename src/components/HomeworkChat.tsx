@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Trash2, Upload, X, Loader2, Sparkles, Copy, Check, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
+import { useHomeworkHelper, Message } from '@/hooks/useHomeworkHelper';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 // Define pdfjsLib type
 interface PdfJsLib {
@@ -43,9 +44,22 @@ const loadPdfJs = async (): Promise<PdfJsLib> => {
 interface HomeworkChatProps {
   isGuest: boolean;
   imageLimit: number;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  onMessageSent?: (message: Message) => void;
+  onAssistantResponse?: (message: Message) => void;
+  onClearChat?: () => void;
 }
 
-export function HomeworkChat({ isGuest, imageLimit }: HomeworkChatProps) {
+export function HomeworkChat({ 
+  isGuest, 
+  imageLimit, 
+  messages, 
+  setMessages,
+  onMessageSent,
+  onAssistantResponse,
+  onClearChat
+}: HomeworkChatProps) {
   const [input, setInput] = useState('');
   const [context, setContext] = useState('');
   const [showContext, setShowContext] = useState(false);
@@ -54,7 +68,14 @@ export function HomeworkChat({ isGuest, imageLimit }: HomeworkChatProps) {
   const [imageCount, setImageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, isLoading, error, sendQuestion, clearMessages } = useHomeworkHelper();
+  
+  const { isLoading, error, sendQuestion, clearMessages } = useHomeworkHelper({
+    messages,
+    setMessages,
+    onMessageSent,
+    onAssistantResponse,
+  });
+  
   const { toast } = useToast();
   const { t, language, languageName } = useLanguage();
 
@@ -78,7 +99,6 @@ export function HomeworkChat({ isGuest, imageLimit }: HomeworkChatProps) {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     
-    // Include image context if any
     let fullContext = context.trim();
     if (uploadedImages.length > 0) {
       fullContext += `\n\n[User uploaded ${uploadedImages.length} image(s)]`;
@@ -183,6 +203,7 @@ export function HomeworkChat({ isGuest, imageLimit }: HomeworkChatProps) {
     setUploadedImages([]);
     setContext('');
     setShowContext(false);
+    onClearChat?.();
   };
 
   const removeImage = (index: number) => {
@@ -218,9 +239,13 @@ export function HomeworkChat({ isGuest, imageLimit }: HomeworkChatProps) {
                     : 'bg-muted/80 hover:bg-muted'
                 }`}
               >
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed break-words">
-                  {msg.content}
-                </pre>
+                {msg.role === 'assistant' ? (
+                  <MarkdownRenderer content={msg.content} />
+                ) : (
+                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed break-words">
+                    {msg.content}
+                  </pre>
+                )}
               </div>
               <Button
                 variant="ghost"

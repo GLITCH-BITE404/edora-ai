@@ -7,8 +7,19 @@ export interface Message {
   content: string;
 }
 
-export function useHomeworkHelper() {
-  const [messages, setMessages] = useState<Message[]>([]);
+interface UseHomeworkHelperOptions {
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  onMessageSent?: (message: Message) => void;
+  onAssistantResponse?: (message: Message) => void;
+}
+
+export function useHomeworkHelper({ 
+  messages, 
+  setMessages, 
+  onMessageSent,
+  onAssistantResponse 
+}: UseHomeworkHelperOptions) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,10 +32,12 @@ export function useHomeworkHelper() {
     setMessages(updatedMessages);
     setIsLoading(true);
 
+    // Notify parent about the user message
+    onMessageSent?.(userMsg);
+
     let assistantContent = '';
 
     try {
-      // Send the full conversation history to the API
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
@@ -93,19 +106,24 @@ export function useHomeworkHelper() {
           }
         }
       }
+
+      // Notify parent about the complete assistant response
+      if (assistantContent) {
+        onAssistantResponse?.({ role: 'assistant', content: assistantContent });
+      }
     } catch (err) {
       console.error('Homework helper error:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong');
-      setMessages(prev => prev.slice(0, -1)); // Remove user message on error
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
-  }, [messages]);
+  }, [messages, setMessages, onMessageSent, onAssistantResponse]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
     setError(null);
-  }, []);
+  }, [setMessages]);
 
-  return { messages, isLoading, error, sendQuestion, clearMessages };
+  return { isLoading, error, sendQuestion, clearMessages };
 }
