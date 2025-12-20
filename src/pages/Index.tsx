@@ -5,17 +5,26 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { UserMenu } from '@/components/UserMenu';
 import { GuestUpgradePopup } from '@/components/GuestUpgradePopup';
 import { LoginSuccessPopup } from '@/components/LoginSuccessPopup';
+import { MemoryToggle } from '@/components/MemoryToggle';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useChatStorage, Message } from '@/hooks/useChatStorage';
 import { supabase } from '@/integrations/supabase/client';
 import { Sparkles } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
+const MEMORY_STORAGE_KEY = 'edora-memory-enabled';
+const MEMORY_POPUP_SHOWN_KEY = 'edora-memory-popup-shown';
+
 const Index = () => {
   const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [showGuestPopup, setShowGuestPopup] = useState(false);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [showMemoryPopup, setShowMemoryPopup] = useState(false);
+  const [memoryEnabled, setMemoryEnabled] = useState(() => {
+    const saved = localStorage.getItem(MEMORY_STORAGE_KEY);
+    return saved === 'true';
+  });
   
   // Guest state for local messages
   const [guestMessages, setGuestMessages] = useState<Message[]>([]);
@@ -37,7 +46,8 @@ const Index = () => {
     startNewChat,
   } = useChatStorage(user);
 
-  // Use appropriate messages based on auth state
+  // Use appropriate messages based on auth state and memory setting
+  // If memory is off, we only show current session messages (no history loading)
   const messages = isGuest ? guestMessages : storedMessages;
   const setMessages = isGuest ? setGuestMessages : setStoredMessages;
 
@@ -47,6 +57,14 @@ const Index = () => {
       
       if (event === 'SIGNED_IN' && newUser && !user) {
         setShowLoginPopup(true);
+        // Check if we should show memory popup
+        const popupShown = localStorage.getItem(MEMORY_POPUP_SHOWN_KEY);
+        if (!popupShown) {
+          setTimeout(() => {
+            setShowLoginPopup(false);
+            setShowMemoryPopup(true);
+          }, 2000);
+        }
       }
       
       setUser(newUser);
@@ -69,9 +87,20 @@ const Index = () => {
     }
   }, [isGuest]);
 
-  // Handle message sent - create chat if needed for logged-in users
+  // Save memory preference
+  const handleMemoryToggle = (enabled: boolean) => {
+    setMemoryEnabled(enabled);
+    localStorage.setItem(MEMORY_STORAGE_KEY, String(enabled));
+  };
+
+  const handleDismissMemoryPopup = () => {
+    localStorage.setItem(MEMORY_POPUP_SHOWN_KEY, 'true');
+    setShowMemoryPopup(false);
+  };
+
+  // Handle message sent - create chat if needed for logged-in users with memory enabled
   const handleMessageSent = useCallback(async (message: Message) => {
-    if (isGuest) return;
+    if (isGuest || !memoryEnabled) return;
     
     let chatId = currentSessionId;
     
@@ -83,13 +112,13 @@ const Index = () => {
     if (chatId) {
       await saveMessage(chatId, message);
     }
-  }, [isGuest, currentSessionId, createChat, saveMessage]);
+  }, [isGuest, memoryEnabled, currentSessionId, createChat, saveMessage]);
 
   // Handle assistant response
   const handleAssistantResponse = useCallback(async (message: Message) => {
-    if (isGuest || !currentSessionId) return;
+    if (isGuest || !currentSessionId || !memoryEnabled) return;
     await saveMessage(currentSessionId, message);
-  }, [isGuest, currentSessionId, saveMessage]);
+  }, [isGuest, currentSessionId, saveMessage, memoryEnabled]);
 
   // Handle clear chat for guests
   const handleClearChat = useCallback(() => {
@@ -105,8 +134,8 @@ const Index = () => {
 
   return (
     <div className="h-[100dvh] bg-background flex overflow-hidden">
-      {/* Chat Sidebar - Only for logged in users */}
-      {!isGuest && (
+      {/* Chat Sidebar - Only for logged in users with memory enabled */}
+      {!isGuest && memoryEnabled && (
         <ChatSidebar
           sessions={sessions}
           currentSessionId={currentSessionId}
@@ -133,6 +162,15 @@ const Index = () => {
               <span className="text-base sm:text-lg font-semibold text-foreground">{t('title')}</span>
             </div>
             <div className="flex items-center gap-1">
+              {/* Memory Toggle - Only for logged in users */}
+              {!isGuest && (
+                <MemoryToggle
+                  enabled={memoryEnabled}
+                  onToggle={handleMemoryToggle}
+                  showInitialPopup={showMemoryPopup}
+                  onDismissPopup={handleDismissMemoryPopup}
+                />
+              )}
               <LanguageSelector />
               <UserMenu />
             </div>
