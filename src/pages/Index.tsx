@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { HomeworkChat } from '@/components/HomeworkChat';
 import { ChatSidebar } from '@/components/ChatSidebar';
 import { LanguageSelector } from '@/components/LanguageSelector';
@@ -25,9 +25,15 @@ const Index = () => {
     const saved = localStorage.getItem(MEMORY_STORAGE_KEY);
     return saved === 'true';
   });
-  
+
   // Guest state for local messages
   const [guestMessages, setGuestMessages] = useState<Message[]>([]);
+
+  // Account-wide memory used for the LLM when Memory is ON
+  const [accountMemoryMessages, setAccountMemoryMessages] = useState<Message[]>([]);
+
+  // Stable ref to the active chat id (prevents losing assistant messages for new chats)
+  const activeChatIdRef = useRef<string | null>(null);
 
   const isGuest = !user;
   const imageLimit = isGuest ? 7 : 20;
@@ -46,15 +52,66 @@ const Index = () => {
     startNewChat,
   } = useChatStorage(user);
 
-  // Use appropriate messages based on auth state and memory setting
-  // If memory is off, we only show current session messages (no history loading)
+  // Keep ref synced with the currently-selected chat
+  useEffect(() => {
+    activeChatIdRef.current = currentSessionId;
+  }, [currentSessionId]);
+
+  // Load account-wide memory when enabled (so the AI can remember across chats)
+  useEffect(() => {
+    const loadAccountMemory = async () => {
+      if (!user || !memoryEnabled) {
+        setAccountMemoryMessages([]);
+        return;
+      }
+
+      try {
+        const { data: chats, error: chatsError } = await supabase
+          .from('chats')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (chatsError) throw chatsError;
+
+        const chatIds = (chats || []).map((c) => c.id);
+        if (chatIds.length === 0) {
+          setAccountMemoryMessages([]);
+          return;
+        }
+
+        const { data: msgs, error: msgsError } = await supabase
+          .from('messages')
+          .select('role, content, created_at, chat_id')
+          .in('chat_id', chatIds)
+          .order('created_at', { ascending: true })
+          .limit(200);
+
+        if (msgsError) throw msgsError;
+
+        const formatted: Message[] = (msgs || []).map((m: any) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+
+        setAccountMemoryMessages(formatted.slice(-60));
+      } catch (err) {
+        console.error('Error loading account memory:', err);
+      }
+    };
+
+    loadAccountMemory();
+  }, [user?.id, memoryEnabled]);
+
+  // Use appropriate messages based on auth state
   const messages = isGuest ? guestMessages : storedMessages;
   const setMessages = isGuest ? setGuestMessages : setStoredMessages;
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       const newUser = session?.user ?? null;
-      
+
       if (event === 'SIGNED_IN' && newUser && !user) {
         setShowLoginPopup(true);
         // Check if we should show memory popup
@@ -66,7 +123,7 @@ const Index = () => {
           }, 2000);
         }
       }
-      
+
       setUser(newUser);
     });
 
@@ -99,26 +156,48 @@ const Index = () => {
   };
 
   // Handle message sent - create chat if needed for logged-in users with memory enabled
-  const handleMessageSent = useCallback(async (message: Message) => {
-    if (isGuest || !memoryEnabled) return;
-    
-    let chatId = currentSessionId;
-    
-    // Create new chat if no current session
-    if (!chatId) {
-      chatId = await createChat(message.content);
-    }
-    
-    if (chatId) {
-      await saveMessage(chatId, message);
-    }
-  }, [isGuest, memoryEnabled, currentSessionId, createChat, saveMessage]);
+  const handleMessageSent = useCallback(
+    async (message: Message) => {
+      if (isGuest || !memoryEnabled) return;
 
-  // Handle assistant response
-  const handleAssistantResponse = useCallback(async (message: Message) => {
-    if (isGuest || !currentSessionId || !memoryEnabled) return;
-    await saveMessage(currentSessionId, message);
-  }, [isGuest, currentSessionId, saveMessage, memoryEnabled]);
+      let chatId = activeChatIdRef.current;
+
+      // Create new chat if no current session
+      if (!chatId) {
+        chatId = await createChat(message.content);
+      }
+
+      if (chatId) {
+        activeChatIdRef.current = chatId;
+        await saveMessage(chatId, message);
+        setAccountMemoryMessages((prev) => [...prev, message].slice(-60));
+      }
+    },
+    [isGuest, memoryEnabled, createChat, saveMessage]
+  );
+
+  // Handle assistant response (always save to the currently-active chat)
+  const handleAssistantResponse = useCallback(
+    async (message: Message) => {
+      if (isGuest || !memoryEnabled) return;
+
+      const chatId = activeChatIdRef.current;
+      if (!chatId) return;
+
+      await saveMessage(chatId, message);
+      setAccountMemoryMessages((prev) => [...prev, message].slice(-60));
+    },
+    [isGuest, memoryEnabled, saveMessage]
+  );
+
+  // Select a chat
+  const handleSelectChat = useCallback(
+    async (chatId: string) => {
+      activeChatIdRef.current = chatId;
+      await selectChat(chatId);
+    },
+    [selectChat]
+  );
 
   // Handle clear chat for guests
   const handleClearChat = useCallback(() => {
@@ -129,6 +208,7 @@ const Index = () => {
 
   // Handle new chat - ChatGPT style (just start fresh, create on first message)
   const handleNewChat = useCallback(() => {
+    activeChatIdRef.current = null;
     startNewChat();
   }, [startNewChat]);
 
@@ -140,7 +220,7 @@ const Index = () => {
           sessions={sessions}
           currentSessionId={currentSessionId}
           onNewChat={handleNewChat}
-          onSelectChat={selectChat}
+          onSelectChat={handleSelectChat}
           onDeleteChat={deleteChat}
           onRenameChat={renameChat}
           isGuest={isGuest}
@@ -179,11 +259,12 @@ const Index = () => {
 
         {/* Main chat area */}
         <main className="flex-1 min-h-0">
-          <HomeworkChat 
-            isGuest={isGuest} 
+          <HomeworkChat
+            isGuest={isGuest}
             imageLimit={imageLimit}
             messages={messages}
             setMessages={setMessages}
+            memoryMessages={!isGuest && memoryEnabled ? accountMemoryMessages : undefined}
             onMessageSent={handleMessageSent}
             onAssistantResponse={handleAssistantResponse}
             onClearChat={handleClearChat}
