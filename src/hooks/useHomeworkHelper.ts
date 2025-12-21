@@ -6,6 +6,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/homework-hel
 interface UseHomeworkHelperOptions {
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  memoryMessages?: Message[];
   onMessageSent?: (message: Message) => void;
   onAssistantResponse?: (message: Message) => void;
 }
@@ -13,6 +14,7 @@ interface UseHomeworkHelperOptions {
 export function useHomeworkHelper({ 
   messages, 
   setMessages, 
+  memoryMessages,
   onMessageSent,
   onAssistantResponse 
 }: UseHomeworkHelperOptions) {
@@ -34,8 +36,10 @@ export function useHomeworkHelper({
     let assistantContent = '';
 
     try {
-      // Send messages without images to the API (images are just for display)
-      const apiMessages = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+      // Combine memory messages (account history) with current chat messages
+      const memoryContext = memoryMessages?.map(m => ({ role: m.role, content: m.content })) || [];
+      const currentMessages = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+      const apiMessages = [...memoryContext, ...currentMessages];
       
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
@@ -117,7 +121,7 @@ export function useHomeworkHelper({
     } finally {
       setIsLoading(false);
     }
-  }, [messages, setMessages, onMessageSent, onAssistantResponse]);
+  }, [messages, setMessages, memoryMessages, onMessageSent, onAssistantResponse]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);

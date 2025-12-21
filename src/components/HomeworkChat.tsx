@@ -47,6 +47,7 @@ interface HomeworkChatProps {
   imageLimit: number;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  memoryMessages?: Message[];
   onMessageSent?: (message: Message) => void;
   onAssistantResponse?: (message: Message) => void;
   onClearChat?: () => void;
@@ -57,6 +58,7 @@ export function HomeworkChat({
   imageLimit, 
   messages, 
   setMessages,
+  memoryMessages,
   onMessageSent,
   onAssistantResponse,
   onClearChat
@@ -73,6 +75,7 @@ export function HomeworkChat({
   const { isLoading, error, sendQuestion, clearMessages } = useHomeworkHelper({
     messages,
     setMessages,
+    memoryMessages,
     onMessageSent,
     onAssistantResponse,
   });
