@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Upload, X, Loader2, Sparkles, Copy, Check, Image as ImageIcon, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Send, Trash2, Upload, X, Loader2, Sparkles, Copy, Check, Image as ImageIcon, Mic, MicOff, Volume2, VolumeX, Phone, PhoneOff, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
-import { useVoiceChat } from '@/hooks/useVoiceChat';
+import { useVoiceChat, VOICE_OPTIONS, VoiceId } from '@/hooks/useVoiceChat';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -71,6 +72,9 @@ export function HomeworkChat({
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [imageCount, setImageCount] = useState(0);
   const [autoSpeak, setAutoSpeak] = useState(false);
+  const [vcMode, setVcMode] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState<VoiceId>('EXAVITQu4vr4xnSDxMaL');
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastAssistantMsgRef = useRef<string>('');
@@ -97,19 +101,45 @@ export function HomeworkChat({
     stopSpeaking 
   } = useVoiceChat({
     onTranscript: (text) => {
-      setInput(text);
-      // Auto-submit after voice input
-      setTimeout(() => {
+      if (vcMode) {
+        // In VC mode, directly send without showing in input
         if (text.trim()) {
           const fullContext = context.trim();
           sendQuestion(text.trim(), fullContext || undefined, languageName, uploadedImages.length > 0 ? [...uploadedImages] : undefined);
-          setInput('');
           setUploadedImages([]);
         }
-      }, 100);
+      } else {
+        setInput(text);
+        // Auto-submit after voice input
+        setTimeout(() => {
+          if (text.trim()) {
+            const fullContext = context.trim();
+            sendQuestion(text.trim(), fullContext || undefined, languageName, uploadedImages.length > 0 ? [...uploadedImages] : undefined);
+            setInput('');
+            setUploadedImages([]);
+          }
+        }, 100);
+      }
     },
     language: languageName,
+    voiceId: selectedVoice,
   });
+
+  // Auto-listen in VC mode after response
+  useEffect(() => {
+    if (vcMode && !isLoading && !isSpeaking && messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.role === 'assistant' && !isListening) {
+        // Small delay before listening again
+        const timer = setTimeout(() => {
+          if (vcMode && !isSpeaking) {
+            startListening();
+          }
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [vcMode, isLoading, isSpeaking, messages, isListening, startListening]);
 
   const remainingImages = imageLimit - imageCount;
 
@@ -117,16 +147,31 @@ export function HomeworkChat({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-speak new assistant messages
+  // Auto-speak new assistant messages (in VC mode or when autoSpeak is on)
   useEffect(() => {
-    if (autoSpeak && messages.length > 0 && !isLoading) {
+    if ((autoSpeak || vcMode) && messages.length > 0 && !isLoading) {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.role === 'assistant' && lastMsg.content !== lastAssistantMsgRef.current) {
         lastAssistantMsgRef.current = lastMsg.content;
         speak(lastMsg.content);
       }
     }
-  }, [messages, isLoading, autoSpeak, speak]);
+  }, [messages, isLoading, autoSpeak, vcMode, speak]);
+
+  // Toggle VC mode
+  const toggleVcMode = () => {
+    if (!vcMode) {
+      setVcMode(true);
+      setAutoSpeak(true);
+      startListening();
+      toast({ description: '🎙️ Voice chat mode activated' });
+    } else {
+      setVcMode(false);
+      stopListening();
+      stopSpeaking();
+      toast({ description: '📝 Text chat mode activated' });
+    }
+  };
 
   useEffect(() => {
     if (error) {
@@ -381,37 +426,151 @@ export function HomeworkChat({
         </div>
       )}
 
-      {/* Input area */}
-      <form onSubmit={handleSubmit} className="border-t border-border p-3 sm:p-4 shrink-0">
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <input
-            type="file"
-            accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-            id="file-upload"
-          />
-          
-          <div className="flex-1 relative">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t('placeholder')}
-              className="w-full bg-muted/50 border border-border rounded-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-            />
+      {/* VC Mode Overlay */}
+      {vcMode && (
+        <div className="border-t border-border p-4 sm:p-6 bg-gradient-to-t from-primary/5 to-transparent shrink-0">
+          <div className="flex flex-col items-center gap-3">
+            <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all ${
+              isListening 
+                ? 'bg-red-500/20 animate-pulse ring-4 ring-red-500/30' 
+                : isSpeaking 
+                  ? 'bg-primary/20 animate-pulse ring-4 ring-primary/30'
+                  : isLoading
+                    ? 'bg-muted animate-pulse'
+                    : 'bg-muted/50'
+            }`}>
+              {isListening ? (
+                <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-red-500" />
+              ) : isSpeaking ? (
+                <Volume2 className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
+              ) : isLoading ? (
+                <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground animate-spin" />
+              ) : (
+                <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground" />
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {isListening 
+                ? 'Listening...' 
+                : isSpeaking 
+                  ? 'Speaking...' 
+                  : isLoading 
+                    ? 'Thinking...'
+                    : 'Tap to speak'}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleVcMode}
+              className="text-xs"
+            >
+              <PhoneOff className="w-3 h-3 mr-1" />
+              Exit Voice Chat
+            </Button>
           </div>
+        </div>
+      )}
+
+      {/* Input area - hidden in VC mode */}
+      {!vcMode && (
+        <form onSubmit={handleSubmit} className="border-t border-border p-3 sm:p-4 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <input
+              type="file"
+              accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="file-upload"
+            />
+            
+            <div className="flex-1 relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={t('placeholder')}
+                className="w-full bg-muted/50 border border-border rounded-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+              />
+            </div>
 
           <div className="flex items-center gap-0.5 sm:gap-1">
-            {/* Voice controls */}
+            {/* VC Mode button */}
             {voiceSupported && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all ${
+                  vcMode 
+                    ? 'bg-green-500/20 text-green-500 animate-pulse' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-primary/10'
+                }`}
+                onClick={toggleVcMode}
+                title={vcMode ? 'Exit voice chat mode' : 'Enter voice chat mode'}
+              >
+                {vcMode ? <PhoneOff className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+              </Button>
+            )}
+
+            {/* Voice selector - locked for guests */}
+            <div className="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={`h-8 sm:h-9 px-2 rounded-full text-xs transition-all ${
+                  showVoiceSelector ? 'bg-primary/20' : ''
+                } ${isGuest ? 'opacity-60' : ''}`}
+                onClick={() => {
+                  if (isGuest) {
+                    toast({
+                      description: '🔒 Log in to choose your voice',
+                      variant: 'default',
+                    });
+                  } else {
+                    setShowVoiceSelector(!showVoiceSelector);
+                  }
+                }}
+                title={isGuest ? 'Log in to change voice' : 'Change voice'}
+              >
+                <Volume2 className="w-3 h-3 mr-1" />
+                <span className="hidden sm:inline">
+                  {VOICE_OPTIONS.find(v => v.id === selectedVoice)?.name || 'Voice'}
+                </span>
+                {isGuest && <Lock className="w-3 h-3 ml-1" />}
+              </Button>
+              
+              {showVoiceSelector && !isGuest && (
+                <div className="absolute bottom-full mb-2 left-0 bg-popover border border-border rounded-lg shadow-lg p-2 min-w-[140px] z-50">
+                  <div className="text-xs text-muted-foreground mb-2 px-2">Select Voice</div>
+                  {VOICE_OPTIONS.map((voice) => (
+                    <button
+                      key={voice.id}
+                      onClick={() => {
+                        setSelectedVoice(voice.id);
+                        setShowVoiceSelector(false);
+                        toast({ description: `Voice changed to ${voice.name}` });
+                      }}
+                      className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted transition-colors ${
+                        selectedVoice === voice.id ? 'bg-primary/10 text-primary' : ''
+                      }`}
+                    >
+                      {voice.name} <span className="text-xs text-muted-foreground">({voice.gender})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Voice controls - only show when not in VC mode */}
+            {voiceSupported && !vcMode && (
               <>
                 <Button
                   type="button"
@@ -510,7 +669,8 @@ export function HomeworkChat({
             {remainingImages} {t('imagesRemaining')}
           </span>
         </div>
-      </form>
+        </form>
+      )}
     </div>
   );
 }
