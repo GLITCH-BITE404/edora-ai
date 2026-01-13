@@ -46,12 +46,27 @@ declare global {
   }
 }
 
+// Available voices
+export const VOICE_OPTIONS = [
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', gender: 'Female' },
+  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', gender: 'Male' },
+  { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', gender: 'Female' },
+  { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', gender: 'Male' },
+  { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', gender: 'Female' },
+  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', gender: 'Male' },
+  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', gender: 'Female' },
+  { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', gender: 'Male' },
+] as const;
+
+export type VoiceId = typeof VOICE_OPTIONS[number]['id'];
+
 interface UseVoiceChatOptions {
   onTranscript?: (text: string) => void;
   language?: string;
+  voiceId?: VoiceId;
 }
 
-export function useVoiceChat({ onTranscript, language = 'en' }: UseVoiceChatOptions = {}) {
+export function useVoiceChat({ onTranscript, language = 'en', voiceId = 'EXAVITQu4vr4xnSDxMaL' }: UseVoiceChatOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
@@ -124,7 +139,7 @@ export function useVoiceChat({ onTranscript, language = 'en' }: UseVoiceChatOpti
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, voiceId }),
         }
       );
 
@@ -152,7 +167,7 @@ export function useVoiceChat({ onTranscript, language = 'en' }: UseVoiceChatOpti
       console.error('TTS error:', error);
       setIsSpeaking(false);
     }
-  }, []);
+  }, [voiceId]);
 
   const stopSpeaking = useCallback(() => {
     if (audioRef.current) {
