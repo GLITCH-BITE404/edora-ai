@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Upload, X, Loader2, Sparkles, Copy, Check, Image as ImageIcon } from 'lucide-react';
+import { Send, Trash2, Upload, X, Loader2, Sparkles, Copy, Check, Image as ImageIcon, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useHomeworkHelper } from '@/hooks/useHomeworkHelper';
+import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -69,8 +70,10 @@ export function HomeworkChat({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [imageCount, setImageCount] = useState(0);
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastAssistantMsgRef = useRef<string>('');
   
   const { isLoading, error, sendQuestion, clearMessages } = useHomeworkHelper({
     messages,
@@ -83,11 +86,47 @@ export function HomeworkChat({
   const { toast } = useToast();
   const { t, language, languageName } = useLanguage();
 
+  // Voice chat hook
+  const { 
+    isListening, 
+    isSpeaking, 
+    isSupported: voiceSupported,
+    startListening, 
+    stopListening, 
+    speak, 
+    stopSpeaking 
+  } = useVoiceChat({
+    onTranscript: (text) => {
+      setInput(text);
+      // Auto-submit after voice input
+      setTimeout(() => {
+        if (text.trim()) {
+          const fullContext = context.trim();
+          sendQuestion(text.trim(), fullContext || undefined, languageName, uploadedImages.length > 0 ? [...uploadedImages] : undefined);
+          setInput('');
+          setUploadedImages([]);
+        }
+      }, 100);
+    },
+    language: languageName,
+  });
+
   const remainingImages = imageLimit - imageCount;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-speak new assistant messages
+  useEffect(() => {
+    if (autoSpeak && messages.length > 0 && !isLoading) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.role === 'assistant' && lastMsg.content !== lastAssistantMsgRef.current) {
+        lastAssistantMsgRef.current = lastMsg.content;
+        speak(lastMsg.content);
+      }
+    }
+  }, [messages, isLoading, autoSpeak, speak]);
 
   useEffect(() => {
     if (error) {
@@ -371,6 +410,45 @@ export function HomeworkChat({
           </div>
 
           <div className="flex items-center gap-0.5 sm:gap-1">
+            {/* Voice controls */}
+            {voiceSupported && (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all ${
+                    isListening 
+                      ? 'bg-red-500/20 text-red-500 animate-pulse' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-primary/10'
+                  }`}
+                  onClick={isListening ? stopListening : startListening}
+                  title={isListening ? 'Stop listening' : 'Voice input'}
+                  disabled={isLoading}
+                >
+                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all ${
+                    autoSpeak 
+                      ? 'bg-primary/20 text-primary' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-primary/10'
+                  }`}
+                  onClick={() => {
+                    setAutoSpeak(!autoSpeak);
+                    if (isSpeaking) stopSpeaking();
+                  }}
+                  title={autoSpeak ? 'Disable auto-speak' : 'Enable auto-speak'}
+                >
+                  {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </Button>
+              </>
+            )}
+
             {/* Image count indicator */}
             <span className="text-xs text-muted-foreground px-2 hidden sm:block">
               {remainingImages} {t('imagesRemaining')}

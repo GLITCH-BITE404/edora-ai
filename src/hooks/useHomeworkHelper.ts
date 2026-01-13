@@ -37,8 +37,17 @@ export function useHomeworkHelper({
 
     try {
       // Combine memory messages (account history) with current chat messages
-      const memoryContext = memoryMessages?.map(m => ({ role: m.role, content: m.content })) || [];
-      const currentMessages = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+      // Include images in message objects so the LLM can see them
+      const memoryContext = memoryMessages?.map(m => ({ 
+        role: m.role, 
+        content: m.content,
+        images: m.images 
+      })) || [];
+      const currentMessages = updatedMessages.map(m => ({ 
+        role: m.role, 
+        content: m.content,
+        images: m.images 
+      }));
       const apiMessages = [...memoryContext, ...currentMessages];
       
       const resp = await fetch(CHAT_URL, {
@@ -50,7 +59,8 @@ export function useHomeworkHelper({
         body: JSON.stringify({ 
           messages: apiMessages, 
           context, 
-          language 
+          language,
+          images // Also pass top-level images for backwards compatibility
         }),
       });
 

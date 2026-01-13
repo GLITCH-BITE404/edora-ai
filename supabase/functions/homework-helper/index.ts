@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, context, language = 'English' } = await req.json();
+    const { messages, context, language = 'English', images } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -26,6 +26,7 @@ IMPORTANT RULES:
 - If asked "how do I say X in [language]", provide the translation
 - If asked about any topic, answer helpfully
 - Remember the ENTIRE conversation - refer back to previous messages when relevant
+- When analyzing images, describe what you see in detail and answer questions about them
 
 Your behavior:
 - Always respond in ${language} (include technical terms or foreign words as needed)
@@ -34,6 +35,7 @@ Your behavior:
 - For math: show the answer and key steps
 - For translations: provide the translation directly
 - For general questions: answer naturally and helpfully
+- For images: describe what you see and answer any questions about them
 - Be smart about context from earlier in the conversation
 - Format answers cleanly using line breaks when helpful
 - Be friendly, helpful, and conversational
@@ -45,12 +47,13 @@ You are NOT restricted to homework only. Help with:
 - Writing and grammar
 - Math and science
 - History, geography, arts
+- Image analysis and description
 - Literally anything the user asks
 
 Remember: You have memory of this conversation. Use it to give better, contextual answers.`;
 
     // Build messages array with conversation history
-    const apiMessages: { role: string; content: string }[] = [
+    const apiMessages: { role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }[] = [
       { role: "system", content: systemPrompt }
     ];
 
@@ -62,14 +65,33 @@ Remember: You have memory of this conversation. Use it to give better, contextua
       });
     }
 
-    // Add all conversation messages
+    // Add all conversation messages, handling images for vision
     if (messages && Array.isArray(messages)) {
       for (const msg of messages) {
-        apiMessages.push({ role: msg.role, content: msg.content });
+        // Check if this message has images attached
+        if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) {
+          // Create multimodal content for messages with images
+          const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+            { type: "text", text: msg.content }
+          ];
+          
+          // Add each image as an image_url part
+          for (const imageUrl of msg.images) {
+            content.push({
+              type: "image_url",
+              image_url: { url: imageUrl }
+            });
+          }
+          
+          apiMessages.push({ role: msg.role, content });
+        } else {
+          // Regular text message
+          apiMessages.push({ role: msg.role, content: msg.content });
+        }
       }
     }
 
-    console.log(`Processing request in ${language}, messages: ${messages?.length || 0}`);
+    console.log(`Processing request in ${language}, messages: ${messages?.length || 0}, has images: ${(images && images.length > 0) || messages?.some((m: { images?: string[] }) => m.images && m.images.length > 0)}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
