@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          achievement_name: string
+          achievement_type: string
+          earned_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          achievement_name: string
+          achievement_type: string
+          earned_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          achievement_name?: string
+          achievement_type?: string
+          earned_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chats: {
         Row: {
           created_at: string
@@ -35,6 +59,104 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      flashcards: {
+        Row: {
+          answer: string
+          created_at: string
+          difficulty: number | null
+          id: string
+          next_review_at: string | null
+          question: string
+          room_id: string | null
+          times_correct: number | null
+          times_reviewed: number | null
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          difficulty?: number | null
+          id?: string
+          next_review_at?: string | null
+          question: string
+          room_id?: string | null
+          times_correct?: number | null
+          times_reviewed?: number | null
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          difficulty?: number | null
+          id?: string
+          next_review_at?: string | null
+          question?: string
+          room_id?: string | null
+          times_correct?: number | null
+          times_reviewed?: number | null
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcards_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "study_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_stats: {
+        Row: {
+          created_at: string
+          current_streak: number | null
+          flashcards_mastered: number | null
+          id: string
+          last_active_date: string | null
+          level: number | null
+          longest_streak: number | null
+          questions_asked: number | null
+          teaching_sessions: number | null
+          total_study_minutes: number | null
+          updated_at: string
+          user_id: string
+          xp: number | null
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number | null
+          flashcards_mastered?: number | null
+          id?: string
+          last_active_date?: string | null
+          level?: number | null
+          longest_streak?: number | null
+          questions_asked?: number | null
+          teaching_sessions?: number | null
+          total_study_minutes?: number | null
+          updated_at?: string
+          user_id: string
+          xp?: number | null
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number | null
+          flashcards_mastered?: number | null
+          id?: string
+          last_active_date?: string | null
+          level?: number | null
+          longest_streak?: number | null
+          questions_asked?: number | null
+          teaching_sessions?: number | null
+          total_study_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+          xp?: number | null
         }
         Relationships: []
       }
@@ -66,6 +188,147 @@ export type Database = {
             columns: ["chat_id"]
             isOneToOne: false
             referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_members: {
+        Row: {
+          id: string
+          joined_at: string
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          role?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          role?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "study_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "study_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_rooms: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          invite_code: string
+          is_public: boolean | null
+          max_members: number | null
+          name: string
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          invite_code?: string
+          is_public?: boolean | null
+          max_members?: number | null
+          name: string
+          owner_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          invite_code?: string
+          is_public?: boolean | null
+          max_members?: number | null
+          name?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          completed: boolean | null
+          duration_minutes: number
+          ended_at: string | null
+          id: string
+          room_id: string | null
+          started_at: string
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          duration_minutes: number
+          ended_at?: string | null
+          id?: string
+          room_id?: string | null
+          started_at?: string
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          duration_minutes?: number
+          ended_at?: string | null
+          id?: string
+          room_id?: string | null
+          started_at?: string
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_sessions_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "study_rooms"
             referencedColumns: ["id"]
           },
         ]
