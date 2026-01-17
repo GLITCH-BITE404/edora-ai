@@ -1,9 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const MessageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.string().min(1).max(50000),
+  images: z.array(z.string().url()).max(10).optional(),
+});
+
+const RequestSchema = z.object({
+  messages: z.array(MessageSchema).min(1).max(100),
+  context: z.string().max(100000).optional(),
+  language: z.string().max(50).default('English'),
+  images: z.array(z.string().url()).max(10).optional(),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,7 +27,50 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, context, language = 'English', images } = await req.json();
+    // Authentication check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - please log in to use the AI assistant' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Parse and validate request body
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const validationResult = RequestSchema.safeParse(body);
+    if (!validationResult.success) {
+      console.error('Validation error:', validationResult.error.errors);
+      return new Response(JSON.stringify({ error: 'Invalid request format', details: validationResult.error.errors }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { messages, context, language, images } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -66,32 +125,30 @@ Remember: You have memory of this conversation. Use it to give better, contextua
     }
 
     // Add all conversation messages, handling images for vision
-    if (messages && Array.isArray(messages)) {
-      for (const msg of messages) {
-        // Check if this message has images attached
-        if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) {
-          // Create multimodal content for messages with images
-          const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
-            { type: "text", text: msg.content }
-          ];
-          
-          // Add each image as an image_url part
-          for (const imageUrl of msg.images) {
-            content.push({
-              type: "image_url",
-              image_url: { url: imageUrl }
-            });
-          }
-          
-          apiMessages.push({ role: msg.role, content });
-        } else {
-          // Regular text message
-          apiMessages.push({ role: msg.role, content: msg.content });
+    for (const msg of messages) {
+      // Check if this message has images attached
+      if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) {
+        // Create multimodal content for messages with images
+        const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+          { type: "text", text: msg.content }
+        ];
+        
+        // Add each image as an image_url part
+        for (const imageUrl of msg.images) {
+          content.push({
+            type: "image_url",
+            image_url: { url: imageUrl }
+          });
         }
+        
+        apiMessages.push({ role: msg.role, content });
+      } else {
+        // Regular text message
+        apiMessages.push({ role: msg.role, content: msg.content });
       }
     }
 
-    console.log(`Processing request in ${language}, messages: ${messages?.length || 0}, has images: ${(images && images.length > 0) || messages?.some((m: { images?: string[] }) => m.images && m.images.length > 0)}`);
+    console.log(`User ${user.id} request in ${language}, messages: ${messages.length}, has images: ${(images && images.length > 0) || messages.some(m => m.images && m.images.length > 0)}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -132,7 +189,7 @@ Remember: You have memory of this conversation. Use it to give better, contextua
     });
   } catch (error) {
     console.error("Edora AI error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "An unexpected error occurred" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
