@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, Trash2, Menu, X, Pencil, Check } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Pencil, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 
 export interface ChatSession {
   id: string;
@@ -28,10 +29,8 @@ export function ChatSidebar({
   onSelectChat,
   onDeleteChat,
   onRenameChat,
-  isGuest,
 }: ChatSidebarProps) {
   const { t, language } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const isRTL = language === 'he' || language === 'ar';
@@ -56,104 +55,87 @@ export function ChatSidebar({
   };
 
   return (
-    <>
-      {/* Mobile toggle button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-2 left-2 z-50 md:hidden h-9 w-9"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </Button>
-
-      {/* Overlay for mobile */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
-          onClick={() => setIsOpen(false)}
-        />
+    <aside
+      className={cn(
+        "h-full w-64 bg-sidebar-background border-r border-sidebar-border flex flex-col",
+        isRTL && "border-r-0 border-l"
       )}
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed md:relative z-40 h-full w-64 bg-sidebar-background border-r border-sidebar-border flex flex-col transition-transform duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-          isRTL && "border-r-0 border-l md:right-0 md:left-auto"
-        )}
-        dir={isRTL ? 'rtl' : 'ltr'}
-      >
-        {/* New Chat Button */}
-        <div className="p-3 border-b border-sidebar-border">
-          <Button
-            variant="glow"
-            className="w-full justify-start gap-2"
-            onClick={() => {
-              onNewChat();
-              setIsOpen(false);
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            {t('newChat')}
-          </Button>
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
+      {/* Header */}
+      <div className="p-4 border-b border-sidebar-border">
+        <div className="flex items-center gap-2 mb-3">
+          <MessageSquare className="w-5 h-5 text-primary" />
+          <h2 className="font-semibold text-sm">Chat History</h2>
         </div>
+        <Button
+          className="w-full justify-center gap-2 btn-glow btn-ripple"
+          onClick={onNewChat}
+        >
+          <Plus className="w-4 h-4" />
+          {t('newChat')}
+        </Button>
+      </div>
 
-        {/* Chat List */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {sessions.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">
-              {t('noChats')}
-            </p>
-          ) : (
-            sessions.map((session) => (
-              <div
-                key={session.id}
-                className={cn(
-                  "group sidebar-item flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer",
-                  currentSessionId === session.id
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                )}
-                onClick={() => {
-                  if (editingId !== session.id) {
-                    onSelectChat(session.id);
-                    setIsOpen(false);
-                  }
-                }}
-              >
-                <MessageSquare className="w-4 h-4 shrink-0" />
-                
-                {editingId === session.id ? (
-                  <div className="flex-1 flex items-center gap-1">
-                    <input
-                      type="text"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="flex-1 bg-background border border-border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveEdit(session.id);
-                        if (e.key === 'Escape') cancelEdit();
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        saveEdit(session.id);
-                      }}
-                    >
-                      <Check className="w-3 h-3 text-accent" />
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="flex-1 truncate text-sm">{session.title}</span>
-                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Chat List */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
+        {sessions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+              <MessageSquare className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">{t('noChats')}</p>
+            <p className="text-xs text-muted-foreground mt-1">Start a conversation to see it here</p>
+          </div>
+        ) : (
+          sessions.map((session) => (
+            <div
+              key={session.id}
+              className={cn(
+                "group sidebar-item flex flex-col gap-1 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 tap-highlight",
+                currentSessionId === session.id
+                  ? "bg-primary/10 border border-primary/20 shadow-sm"
+                  : "hover:bg-sidebar-accent/50 border border-transparent"
+              )}
+              onClick={() => {
+                if (editingId !== session.id) {
+                  onSelectChat(session.id);
+                }
+              }}
+            >
+              {editingId === session.id ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="flex-1 bg-background border border-border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveEdit(session.id);
+                      if (e.key === 'Escape') cancelEdit();
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      saveEdit(session.id);
+                    }}
+                  >
+                    <Check className="w-4 h-4 text-primary" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex-1 truncate text-sm font-medium leading-tight">
+                      {session.title}
+                    </span>
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -174,13 +156,19 @@ export function ChatSidebar({
                         <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
                       </Button>
                     </div>
-                  </>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </aside>
-    </>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    <span>{formatDistanceToNow(session.createdAt, { addSuffix: true })}</span>
+                    <span className="text-muted-foreground/50">•</span>
+                    <span>{session.messageCount} messages</span>
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </aside>
   );
 }
