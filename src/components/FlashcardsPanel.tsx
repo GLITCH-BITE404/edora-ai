@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Plus, ChevronLeft, ChevronRight, Check, X, RotateCcw, Trash2 } from 'lucide-react';
+import { BookOpen, Plus, Check, X, RotateCcw, Trash2, ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -75,136 +75,168 @@ export function FlashcardsPanel({
     }
   };
 
+  const goBack = () => {
+    if (view === 'list') {
+      onClose();
+    } else {
+      setView('list');
+      setShowAnswer(false);
+    }
+  };
+
   return (
-    <div className="p-4 space-y-4 h-full flex flex-col">
+    <div className="p-4 space-y-4 h-full flex flex-col overflow-hidden">
+      {/* Header */}
       <div className="flex items-center justify-between shrink-0">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-green-500" />
-          Flashcards
-        </h2>
-        <div className="flex gap-2">
-          {view !== 'list' && (
-            <Button variant="ghost" size="sm" onClick={() => { setView('list'); setShowAnswer(false); }}>
-              Back
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Done
-          </Button>
+        <button 
+          onClick={goBack}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors tap-highlight"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+            <BookOpen className="w-4 h-4 text-green-500" />
+          </div>
+          <span className="font-semibold">Flashcards</span>
         </div>
       </div>
 
       {view === 'list' && (
-        <div className="flex-1 space-y-3 overflow-y-auto">
-          {/* Study Due Cards */}
-          {dueFlashcards.length > 0 && (
-            <Button 
-              onClick={() => { setView('study'); setCurrentIndex(0); }}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Review {dueFlashcards.length} Due Cards
-            </Button>
-          )}
-
-          {/* Create New */}
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => setView('create')}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Flashcard
-          </Button>
-
-          {/* Cards List */}
-          <div className="space-y-2 mt-4">
-            <p className="text-sm text-muted-foreground">
-              {flashcards.length} total cards
-            </p>
-            {flashcards.slice(0, 10).map((card) => (
-              <div
-                key={card.id}
-                className="p-3 bg-card rounded-lg border border-border"
+        <div className="flex-1 space-y-4 overflow-y-auto scrollbar-thin">
+          {/* Action Buttons */}
+          <div className="space-y-2">
+            {dueFlashcards.length > 0 && (
+              <Button 
+                onClick={() => { setView('study'); setCurrentIndex(0); }}
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-lg shadow-green-500/20 btn-glow"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{card.question}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {card.topic || 'General'} • {Math.round((card.timesCorrect / Math.max(card.timesReviewed, 1)) * 100)}% correct
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => onDeleteFlashcard(card.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-            {flashcards.length > 10 && (
-              <p className="text-xs text-center text-muted-foreground">
-                +{flashcards.length - 10} more cards
-              </p>
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Review {dueFlashcards.length} Due Cards
+              </Button>
             )}
+
+            <Button 
+              variant="outline" 
+              className="w-full h-11 rounded-xl"
+              onClick={() => setView('create')}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Flashcard
+            </Button>
           </div>
 
-          {flashcards.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No flashcards yet</p>
-              <p className="text-sm">Create your first one!</p>
+          {/* Stats */}
+          <div className="flex items-center justify-between bg-muted/30 rounded-xl p-3">
+            <span className="text-sm text-muted-foreground">Total cards</span>
+            <span className="font-semibold">{flashcards.length}</span>
+          </div>
+
+          {/* Cards List */}
+          {flashcards.length > 0 ? (
+            <div className="space-y-2">
+              {flashcards.slice(0, 10).map((card) => (
+                <div
+                  key={card.id}
+                  className="p-3 bg-card rounded-xl border border-border card-hover tap-highlight"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm line-clamp-2">{card.question}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        {card.topic && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            {card.topic}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {Math.round((card.timesCorrect / Math.max(card.timesReviewed, 1)) * 100)}% correct
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => onDeleteFlashcard(card.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {flashcards.length > 10 && (
+                <p className="text-xs text-center text-muted-foreground py-2">
+                  +{flashcards.length - 10} more cards
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mb-4">
+                <Sparkles className="w-8 h-8 text-green-500" />
+              </div>
+              <p className="font-medium">No flashcards yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Create your first one to start learning!</p>
             </div>
           )}
         </div>
       )}
 
       {view === 'study' && currentCard && (
-        <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center overflow-hidden">
           <div className="w-full max-w-sm">
             {/* Progress */}
-            <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-              <span>Card {currentIndex + 1} of {dueFlashcards.length}</span>
-              <span>{currentCard.topic || 'General'}</span>
+            <div className="flex items-center justify-between text-sm mb-4">
+              <span className="text-muted-foreground">
+                Card <span className="font-semibold text-foreground">{currentIndex + 1}</span> of {dueFlashcards.length}
+              </span>
+              {currentCard.topic && (
+                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                  {currentCard.topic}
+                </span>
+              )}
             </div>
 
             {/* Card */}
             <div
               onClick={() => setShowAnswer(!showAnswer)}
-              className="relative h-64 cursor-pointer perspective-1000"
+              className="relative h-56 sm:h-64 cursor-pointer"
             >
-              <div className={`absolute inset-0 bg-card rounded-2xl border-2 border-border p-6 flex items-center justify-center transition-transform duration-500 backface-hidden ${
-                showAnswer ? 'rotate-y-180 opacity-0' : ''
-              }`}>
-                <p className="text-center text-lg font-medium">{currentCard.question}</p>
+              <div 
+                className={`absolute inset-0 bg-card rounded-2xl border-2 border-border p-6 flex items-center justify-center shadow-lg transition-all duration-300 ${
+                  showAnswer ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+                }`}
+              >
+                <p className="text-center text-lg font-medium leading-relaxed">{currentCard.question}</p>
               </div>
-              <div className={`absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl border-2 border-primary/30 p-6 flex items-center justify-center transition-transform duration-500 backface-hidden ${
-                showAnswer ? '' : 'rotate-y-180 opacity-0'
-              }`}>
-                <p className="text-center">{currentCard.answer}</p>
+              <div 
+                className={`absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-2xl border-2 border-green-500/30 p-6 flex items-center justify-center shadow-lg transition-all duration-300 ${
+                  showAnswer ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                }`}
+              >
+                <p className="text-center leading-relaxed">{currentCard.answer}</p>
               </div>
             </div>
 
             <p className="text-center text-sm text-muted-foreground my-4">
-              {showAnswer ? 'How well did you know this?' : 'Tap to reveal answer'}
+              {showAnswer ? 'How well did you know this?' : '👆 Tap to reveal answer'}
             </p>
 
             {/* Review Buttons */}
             {showAnswer && (
-              <div className="flex gap-3">
+              <div className="flex gap-3 fade-in">
                 <Button
                   variant="outline"
-                  className="flex-1 border-red-500/50 text-red-500 hover:bg-red-500/10"
+                  className="flex-1 h-12 rounded-xl border-red-500/50 text-red-500 hover:bg-red-500/10"
                   onClick={() => handleReview(false)}
                 >
                   <X className="w-4 h-4 mr-2" />
                   Didn't know
                 </Button>
                 <Button
-                  className="flex-1 bg-green-500 hover:bg-green-600"
+                  className="flex-1 h-12 rounded-xl bg-green-500 hover:bg-green-600"
                   onClick={() => handleReview(true)}
                 >
                   <Check className="w-4 h-4 mr-2" />
@@ -217,14 +249,14 @@ export function FlashcardsPanel({
       )}
 
       {view === 'create' && (
-        <div className="flex-1 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto scrollbar-thin">
           <div className="space-y-2">
             <label className="text-sm font-medium">Question</label>
             <Textarea
               value={newQuestion}
               onChange={(e) => setNewQuestion(e.target.value)}
               placeholder="What do you want to remember?"
-              className="min-h-[80px]"
+              className="min-h-[100px] rounded-xl resize-none"
             />
           </div>
 
@@ -234,20 +266,21 @@ export function FlashcardsPanel({
               value={newAnswer}
               onChange={(e) => setNewAnswer(e.target.value)}
               placeholder="The answer to remember"
-              className="min-h-[80px]"
+              className="min-h-[100px] rounded-xl resize-none"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Topic (optional)</label>
+            <label className="text-sm font-medium">Topic <span className="text-muted-foreground font-normal">(optional)</span></label>
             <Input
               value={newTopic}
               onChange={(e) => setNewTopic(e.target.value)}
               placeholder="e.g., Math, History, Biology..."
+              className="h-11 rounded-xl"
             />
           </div>
 
-          <Button onClick={handleCreate} className="w-full">
+          <Button onClick={handleCreate} className="w-full h-12 rounded-xl btn-glow" size="lg">
             <Plus className="w-4 h-4 mr-2" />
             Create Flashcard
           </Button>
