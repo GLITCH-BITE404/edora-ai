@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { Plus, MessageSquare, Trash2, Pencil, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -22,14 +22,15 @@ interface ChatSidebarProps {
   isGuest: boolean;
 }
 
-export function ChatSidebar({
-  sessions,
-  currentSessionId,
-  onNewChat,
-  onSelectChat,
-  onDeleteChat,
-  onRenameChat,
-}: ChatSidebarProps) {
+export const ChatSidebar = forwardRef<HTMLElement, ChatSidebarProps>(
+  function ChatSidebar({
+    sessions,
+    currentSessionId,
+    onNewChat,
+    onSelectChat,
+    onDeleteChat,
+    onRenameChat,
+  }, ref) {
   const { t, language } = useLanguage();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -54,14 +55,15 @@ export function ChatSidebar({
     setEditTitle('');
   };
 
-  return (
-    <aside
-      className={cn(
-        "h-full w-64 bg-sidebar-background border-r border-sidebar-border flex flex-col",
-        isRTL && "border-r-0 border-l"
-      )}
-      dir={isRTL ? 'rtl' : 'ltr'}
-    >
+    return (
+      <aside
+        ref={ref}
+        className={cn(
+          "h-full w-64 bg-sidebar-background border-r border-sidebar-border flex flex-col",
+          isRTL && "border-r-0 border-l"
+        )}
+        dir={isRTL ? 'rtl' : 'ltr'}
+      >
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2 mb-3">
@@ -168,7 +170,8 @@ export function ChatSidebar({
             </div>
           ))
         )}
-      </div>
-    </aside>
-  );
-}
+        </div>
+      </aside>
+    );
+  }
+);

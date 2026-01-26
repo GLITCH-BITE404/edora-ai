@@ -11,14 +11,16 @@ const corsHeaders = {
 const MessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system']),
   content: z.string().min(1).max(50000),
-  images: z.array(z.string().url()).max(10).optional(),
+  // Images can be URLs or base64 data URIs
+  images: z.array(z.string()).max(10).optional(),
 });
 
 const RequestSchema = z.object({
   messages: z.array(MessageSchema).min(1).max(100),
   context: z.string().max(100000).optional(),
   language: z.string().max(50).default('English'),
-  images: z.array(z.string().url()).max(10).optional(),
+  // Images can be URLs or base64 data URIs
+  images: z.array(z.string()).max(10).optional(),
 });
 
 serve(async (req) => {
