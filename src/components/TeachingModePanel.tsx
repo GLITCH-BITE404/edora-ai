@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TeachingModePanelProps {
   onComplete: () => void;
@@ -36,16 +37,26 @@ export function TeachingModePanel({ onComplete, onClose }: TeachingModePanelProp
   
   const { toast } = useToast();
 
+  const getAuthToken = useCallback(async (): Promise<string> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Please log in to use Teaching Mode');
+    }
+    return session.access_token;
+  }, []);
+
   const generateQuestion = useCallback(async (selectedTopic: string) => {
     setIsLoading(true);
     setStage('question');
 
     try {
+      const accessToken = await getAuthToken();
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/homework-helper`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           messages: [
@@ -102,12 +113,15 @@ Only output the question and expected topics, nothing else.`,
       }
     } catch (err) {
       console.error('Error generating question:', err);
-      toast({ description: 'Failed to generate question', variant: 'destructive' });
+      toast({ 
+        description: err instanceof Error ? err.message : 'Failed to generate question', 
+        variant: 'destructive' 
+      });
       setStage('topic');
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, getAuthToken]);
 
   const evaluateAnswer = useCallback(async () => {
     if (!currentQuestion || !userAnswer.trim()) return;
@@ -115,11 +129,13 @@ Only output the question and expected topics, nothing else.`,
     setIsLoading(true);
 
     try {
+      const accessToken = await getAuthToken();
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/homework-helper`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           messages: [
@@ -187,11 +203,14 @@ Be encouraging and educational!`,
       }
     } catch (err) {
       console.error('Error evaluating answer:', err);
-      toast({ description: 'Failed to evaluate answer', variant: 'destructive' });
+      toast({ 
+        description: err instanceof Error ? err.message : 'Failed to evaluate answer', 
+        variant: 'destructive' 
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [currentQuestion, userAnswer, toast, onComplete]);
+  }, [currentQuestion, userAnswer, toast, onComplete, getAuthToken]);
 
   const handleNextQuestion = () => {
     setUserAnswer('');
