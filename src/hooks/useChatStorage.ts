@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { retry, isNetworkError } from '@/lib/retry';
 
 export interface ChatSession {
   id: string;
@@ -15,21 +16,39 @@ export interface Message {
   images?: string[];
 }
 
-export function useChatStorage(user: User | null) {
+export interface UseChatStorageOptions {
+  /**
+   * If true, the most recent chat will be opened automatically after loading chats.
+   * If false, the UI starts in a fresh unsaved chat (no DB record until first message).
+   */
+  autoOpenMostRecent?: boolean;
+}
+
+export function useChatStorage(user: User | null, options: UseChatStorageOptions = {}) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const loadedUserIdRef = useRef<string | null>(null);
 
+  const { autoOpenMostRecent = true } = options;
+
   // Load messages for a specific chat
   const loadMessages = useCallback(async (chatId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
+      const { data, error } = await retry(
+        () =>
+          supabase
+            .from('messages')
+            .select('role, content, created_at')
+            .eq('chat_id', chatId)
+            .order('created_at', { ascending: true }),
+        {
+          retries: 3,
+          baseDelayMs: 250,
+          shouldRetry: (err) => isNetworkError(err),
+        }
+      );
 
       if (error) throw error;
 
@@ -61,11 +80,19 @@ export function useChatStorage(user: User | null) {
 
       setIsLoadingChats(true);
       try {
-        const { data: chats, error } = await supabase
-          .from('chats')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('updated_at', { ascending: false });
+        const { data: chats, error } = await retry(
+          () =>
+            supabase
+              .from('chats')
+              .select('id, title, created_at, updated_at')
+              .eq('user_id', user.id)
+              .order('updated_at', { ascending: false }),
+          {
+            retries: 3,
+            baseDelayMs: 250,
+            shouldRetry: (err) => isNetworkError(err),
+          }
+        );
 
         if (error) throw error;
 
@@ -78,8 +105,8 @@ export function useChatStorage(user: User | null) {
 
         setSessions(formattedSessions);
         
-        // If there are existing chats, load the most recent one
-        if (formattedSessions.length > 0) {
+        // By default we can open the most recent chat, but we can also start with a fresh unsaved chat.
+        if (formattedSessions.length > 0 && autoOpenMostRecent) {
           setCurrentSessionId(formattedSessions[0].id);
           await loadMessages(formattedSessions[0].id);
         } else {
@@ -94,7 +121,7 @@ export function useChatStorage(user: User | null) {
     };
 
     loadChats();
-  }, [user?.id, loadMessages]);
+  }, [user?.id, loadMessages, autoOpenMostRecent]);
 
   // Create a new chat
   const createChat = useCallback(async (firstMessage: string): Promise<string | null> => {
@@ -105,14 +132,22 @@ export function useChatStorage(user: User | null) {
         ? firstMessage.substring(0, 30) + '...' 
         : firstMessage;
 
-      const { data, error } = await supabase
-        .from('chats')
-        .insert({
-          user_id: user.id,
-          title,
-        })
-        .select()
-        .single();
+      const { data, error } = await retry(
+        () =>
+          supabase
+            .from('chats')
+            .insert({
+              user_id: user.id,
+              title,
+            })
+            .select()
+            .single(),
+        {
+          retries: 3,
+          baseDelayMs: 250,
+          shouldRetry: (err) => isNetworkError(err),
+        }
+      );
 
       if (error) throw error;
 
@@ -138,16 +173,32 @@ export function useChatStorage(user: User | null) {
     if (!user) return;
 
     try {
-      await supabase.from('messages').insert({
-        chat_id: chatId,
-        role: message.role,
-        content: message.content,
-      });
+      await retry(
+        () =>
+          supabase.from('messages').insert({
+            chat_id: chatId,
+            role: message.role,
+            content: message.content,
+          }),
+        {
+          retries: 3,
+          baseDelayMs: 250,
+          shouldRetry: (err) => isNetworkError(err),
+        }
+      );
 
-      await supabase
-        .from('chats')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', chatId);
+      await retry(
+        () =>
+          supabase
+            .from('chats')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', chatId),
+        {
+          retries: 3,
+          baseDelayMs: 250,
+          shouldRetry: (err) => isNetworkError(err),
+        }
+      );
     } catch (err) {
       console.error('Error saving message:', err);
     }
@@ -158,7 +209,14 @@ export function useChatStorage(user: User | null) {
     if (!user) return;
 
     try {
-      await supabase.from('chats').delete().eq('id', chatId);
+      await retry(
+        () => supabase.from('chats').delete().eq('id', chatId),
+        {
+          retries: 3,
+          baseDelayMs: 250,
+          shouldRetry: (err) => isNetworkError(err),
+        }
+      );
       
       setSessions(prev => {
         const remaining = prev.filter(s => s.id !== chatId);
@@ -185,10 +243,18 @@ export function useChatStorage(user: User | null) {
     if (!user) return;
 
     try {
-      await supabase
-        .from('chats')
-        .update({ title: newTitle })
-        .eq('id', chatId);
+      await retry(
+        () =>
+          supabase
+            .from('chats')
+            .update({ title: newTitle })
+            .eq('id', chatId),
+        {
+          retries: 3,
+          baseDelayMs: 250,
+          shouldRetry: (err) => isNetworkError(err),
+        }
+      );
 
       setSessions(prev => prev.map(s => 
         s.id === chatId ? { ...s, title: newTitle } : s
