@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 // Type declarations for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -130,6 +131,12 @@ export function useVoiceChat({ onTranscript, language = 'en', voiceId = 'EXAVITQ
     setIsSpeaking(true);
 
     try {
+      // Get authenticated session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Please log in to use voice features');
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
         {
@@ -137,14 +144,15 @@ export function useVoiceChat({ onTranscript, language = 'en', voiceId = 'EXAVITQ
           headers: {
             'Content-Type': 'application/json',
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ text, voiceId }),
         }
       );
 
       if (!response.ok) {
-        throw new Error(`TTS request failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `TTS request failed: ${response.status}`);
       }
 
       const audioBlob = await response.blob();
