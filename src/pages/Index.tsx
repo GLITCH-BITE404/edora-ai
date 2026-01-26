@@ -258,10 +258,10 @@ const Index = () => {
   );
 
   return (
-    <div className="h-[100dvh] bg-background flex overflow-hidden">
+    <div className="h-[100dvh] bg-background flex overflow-hidden safe-top safe-bottom">
       {/* Desktop Sidebar */}
       {!isGuest && memoryEnabled && !isMobile && (
-        <div className="hidden md:block">
+        <div className="hidden md:flex">
           {sidebarContent}
         </div>
       )}
