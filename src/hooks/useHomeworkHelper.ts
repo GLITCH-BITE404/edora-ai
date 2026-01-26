@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Message } from '@/hooks/useChatStorage';
 import { supabase } from '@/integrations/supabase/client';
+import { retry, isNetworkError } from '@/lib/retry';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/homework-helper`;
 
@@ -58,19 +59,29 @@ export function useHomeworkHelper({
       }));
       const apiMessages = [...memoryContext, ...currentMessages];
       
-      const resp = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ 
-          messages: apiMessages, 
-          context, 
-          language,
-          images // Also pass top-level images for backwards compatibility
-        }),
+      const requestBody = JSON.stringify({
+        messages: apiMessages,
+        context,
+        language,
+        images, // Also pass top-level images for backwards compatibility
       });
+
+      const resp = await retry(
+        () =>
+          fetch(CHAT_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: requestBody,
+          }),
+        {
+          retries: 3,
+          baseDelayMs: 350,
+          shouldRetry: (err) => isNetworkError(err),
+        }
+      );
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));

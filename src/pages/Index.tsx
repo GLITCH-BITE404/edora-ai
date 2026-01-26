@@ -50,6 +50,7 @@ const Index = () => {
   const activeChatIdRef = useRef<string | null>(null);
 
   const isGuest = !user;
+  const dataSavingEnabled = !!user && memoryEnabled;
   const imageLimit = isGuest ? 7 : 20;
 
   // Hooks for learning features
@@ -73,7 +74,7 @@ const Index = () => {
     renameChat,
     selectChat,
     startNewChat,
-  } = useChatStorage(user);
+  } = useChatStorage(dataSavingEnabled ? user : null, { autoOpenMostRecent: false });
 
   useEffect(() => {
     activeChatIdRef.current = currentSessionId;
@@ -97,8 +98,8 @@ const Index = () => {
     loadAccountMemory();
   }, [user?.id, memoryEnabled]);
 
-  const messages = isGuest ? guestMessages : storedMessages;
-  const setMessages = isGuest ? setGuestMessages : setStoredMessages;
+  const messages = dataSavingEnabled ? storedMessages : guestMessages;
+  const setMessages = dataSavingEnabled ? setStoredMessages : setGuestMessages;
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -145,7 +146,9 @@ const Index = () => {
     setSidebarOpen(false);
   }, [selectChat]);
 
-  const handleClearChat = useCallback(() => { if (isGuest) setGuestMessages([]); }, [isGuest]);
+  const handleClearChat = useCallback(() => {
+    if (!dataSavingEnabled) setGuestMessages([]);
+  }, [dataSavingEnabled]);
   const handleNewChat = useCallback(() => { 
     activeChatIdRef.current = null; 
     startNewChat(); 
@@ -260,14 +263,14 @@ const Index = () => {
   return (
     <div className="h-[100dvh] bg-background flex overflow-hidden safe-top safe-bottom">
       {/* Desktop Sidebar */}
-      {!isGuest && memoryEnabled && !isMobile && (
+      {dataSavingEnabled && !isMobile && (
         <div className="hidden md:flex">
           {sidebarContent}
         </div>
       )}
 
       {/* Mobile Sidebar Sheet */}
-      {!isGuest && memoryEnabled && isMobile && (
+      {dataSavingEnabled && isMobile && (
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="w-72 p-0">
             {sidebarContent}
@@ -286,7 +289,7 @@ const Index = () => {
           <div className="px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               {/* Mobile menu button */}
-              {!isGuest && memoryEnabled && isMobile && (
+              {dataSavingEnabled && isMobile && (
                 <Button 
                   variant="ghost" 
                   size="icon" 
