@@ -42,19 +42,19 @@ export function useHomeworkHelper({
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      // Combine memory messages (account history) with current chat messages
-      // Include images in message objects so the LLM can see them
-      const memoryContext = memoryMessages?.map(m => ({ 
+      // Only include recent memory context (last 10 pairs max) as background,
+      // marked as prior context so the LLM doesn't proactively reference it
+      const recentMemory = (memoryMessages || []).slice(-20).map(m => ({ 
         role: m.role, 
         content: m.content,
         images: m.images 
-      })) || [];
+      }));
       const currentMessages = updatedMessages.map(m => ({ 
         role: m.role, 
         content: m.content,
         images: m.images 
       }));
-      const apiMessages = [...memoryContext, ...currentMessages];
+      const apiMessages = [...recentMemory, ...currentMessages];
       
       const requestBody = JSON.stringify({
         messages: apiMessages,
