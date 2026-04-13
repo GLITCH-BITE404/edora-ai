@@ -29,7 +29,7 @@ serve(async (req) => {
   }
 
   try {
-    // Authentication check
+    // Authentication check - allow both authenticated users and anon key
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
@@ -44,13 +44,9 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized - please log in to use the AI assistant' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Try to get user - guests will fail but that's OK
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const userId = user?.id || 'guest';
 
     // Parse and validate request body
     let body: unknown;
@@ -150,7 +146,7 @@ Remember: You have memory of this conversation. Use it to give better, contextua
       }
     }
 
-    console.log(`User ${user.id} request in ${language}, messages: ${messages.length}, has images: ${(images && images.length > 0) || messages.some(m => m.images && m.images.length > 0)}`);
+    console.log(`User ${userId} request in ${language}, messages: ${messages.length}, has images: ${(images && images.length > 0) || messages.some(m => m.images && m.images.length > 0)}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

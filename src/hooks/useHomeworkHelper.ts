@@ -38,12 +38,9 @@ export function useHomeworkHelper({
     let assistantContent = '';
 
     try {
-      // Get the user's session for authenticated requests
+      // Get the user's session for authenticated requests (optional – guests use anon key)
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        throw new Error('Please log in to use the AI assistant');
-      }
+      const accessToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
       // Combine memory messages (account history) with current chat messages
       // Include images in message objects so the LLM can see them
@@ -72,7 +69,7 @@ export function useHomeworkHelper({
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${accessToken}`,
             },
             body: requestBody,
           }),
