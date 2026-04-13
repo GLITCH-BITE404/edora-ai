@@ -473,8 +473,8 @@ export function HomeworkChat({
 
       {/* Input area - hidden in VC mode */}
       {!vcMode && (
-        <form onSubmit={handleSubmit} className="border-t border-border p-3 sm:p-4 shrink-0">
-          <div className="flex items-center gap-1.5 sm:gap-2">
+        <form onSubmit={handleSubmit} className="border-t border-border p-2 sm:p-4 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2">
             <input
               type="file"
               accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*"
@@ -483,176 +483,72 @@ export function HomeworkChat({
               id="file-upload"
             />
             
-            <div className="flex-1 relative">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={t('placeholder')}
-                className="w-full bg-muted/50 border border-border rounded-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                  }
-                }}
-              />
-            </div>
-
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            {/* VC Mode button */}
-            {voiceSupported && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all ${
-                  vcMode 
-                    ? 'bg-green-500/20 text-green-500 animate-pulse' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-primary/10'
-                }`}
-                onClick={toggleVcMode}
-                title={vcMode ? 'Exit voice chat mode' : 'Enter voice chat mode'}
-              >
-                {vcMode ? <PhoneOff className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
-              </Button>
-            )}
-
-            {/* Voice selector - locked for guests */}
-            <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={`h-8 sm:h-9 px-2 rounded-full text-xs transition-all ${
-                  showVoiceSelector ? 'bg-primary/20' : ''
-                } ${isGuest ? 'opacity-60' : ''}`}
-                onClick={() => {
-                  if (isGuest) {
-                    toast({
-                      description: '🔒 Log in to choose your voice',
-                      variant: 'default',
-                    });
-                  } else {
-                    setShowVoiceSelector(!showVoiceSelector);
-                  }
-                }}
-                title={isGuest ? 'Log in to change voice' : 'Change voice'}
-              >
-                <Volume2 className="w-3 h-3 mr-1" />
-                <span className="hidden sm:inline">
-                  {VOICE_OPTIONS.find(v => v.id === selectedVoice)?.name || 'Voice'}
-                </span>
-                {isGuest && <Lock className="w-3 h-3 ml-1" />}
-              </Button>
-              
-              {showVoiceSelector && !isGuest && (
-                <div className="absolute bottom-full mb-2 left-0 bg-popover border border-border rounded-lg shadow-lg p-2 min-w-[140px] z-50">
-                  <div className="text-xs text-muted-foreground mb-2 px-2">Select Voice</div>
-                  {VOICE_OPTIONS.map((voice) => (
-                    <button
-                      key={voice.id}
-                      onClick={() => {
-                        setSelectedVoice(voice.id);
-                        setShowVoiceSelector(false);
-                        toast({ description: `Voice changed to ${voice.name}` });
-                      }}
-                      className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted transition-colors ${
-                        selectedVoice === voice.id ? 'bg-primary/10 text-primary' : ''
-                      }`}
-                    >
-                      {voice.name} <span className="text-xs text-muted-foreground">({voice.gender})</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Voice controls - only show when not in VC mode */}
-            {voiceSupported && !vcMode && (
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all ${
-                    isListening 
-                      ? 'bg-red-500/20 text-red-500 animate-pulse' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-primary/10'
-                  }`}
-                  onClick={isListening ? stopListening : startListening}
-                  title={isListening ? 'Stop listening' : 'Voice input'}
-                  disabled={isLoading}
-                >
-                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all ${
-                    autoSpeak 
-                      ? 'bg-primary/20 text-primary' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-primary/10'
-                  }`}
-                  onClick={() => {
-                    setAutoSpeak(!autoSpeak);
-                    if (isSpeaking) stopSpeaking();
-                  }}
-                  title={autoSpeak ? 'Disable auto-speak' : 'Enable auto-speak'}
-                >
-                  {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                </Button>
-              </>
-            )}
-
-            {/* Image count indicator */}
-            <span className="text-xs text-muted-foreground px-2 hidden sm:block">
-              {remainingImages} {t('imagesRemaining')}
-            </span>
-
+            {/* Upload button */}
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all"
-              onClick={() => document.getElementById('file-upload')?.click()}
-              title={t('uploadFile')}
-              disabled={imageCount >= imageLimit}
-            >
-              <ImageIcon className="w-4 h-4" />
-            </Button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all"
+              className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all"
               onClick={() => document.getElementById('file-upload')?.click()}
               title={t('uploadFile')}
             >
               <Upload className="w-4 h-4" />
             </Button>
-            
+
+            {/* Input field */}
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t('placeholder')}
+              className="flex-1 min-w-0 bg-muted/50 border border-border rounded-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+            />
+
+            {/* Voice input - only on larger screens or in VC mode */}
+            {voiceSupported && !vcMode && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={`h-8 w-8 shrink-0 rounded-full hidden sm:flex transition-all ${
+                  isListening 
+                    ? 'bg-red-500/20 text-red-500 animate-pulse' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-primary/10'
+                }`}
+                onClick={isListening ? stopListening : startListening}
+                title={isListening ? 'Stop listening' : 'Voice input'}
+                disabled={isLoading}
+              >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
+            )}
+
+            {/* Clear button */}
             {messages.length > 0 && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
                 onClick={handleClearMessages}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
             )}
 
+            {/* Send button */}
             <Button
               type="submit"
               disabled={!input.trim() || isLoading}
               size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full"
+              className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-full"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -661,14 +557,91 @@ export function HomeworkChat({
               )}
             </Button>
           </div>
-        </div>
-        
-        {/* Mobile image count */}
-        <div className="sm:hidden text-center mt-2">
-          <span className="text-xs text-muted-foreground">
-            {remainingImages} {t('imagesRemaining')}
-          </span>
-        </div>
+          
+          {/* Secondary controls row */}
+          <div className="flex items-center justify-between mt-1.5 px-1">
+            <div className="flex items-center gap-1">
+              {/* VC Mode */}
+              {voiceSupported && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 px-2 rounded-full text-xs ${
+                    vcMode ? 'bg-green-500/20 text-green-500' : 'text-muted-foreground'
+                  }`}
+                  onClick={toggleVcMode}
+                >
+                  {vcMode ? <PhoneOff className="w-3 h-3 mr-1" /> : <Phone className="w-3 h-3 mr-1" />}
+                  <span className="hidden sm:inline">{vcMode ? 'End VC' : 'Voice Chat'}</span>
+                </Button>
+              )}
+
+              {/* Auto-speak toggle */}
+              {voiceSupported && !vcMode && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 px-2 rounded-full text-xs ${
+                    autoSpeak ? 'bg-primary/20 text-primary' : 'text-muted-foreground'
+                  }`}
+                  onClick={() => {
+                    setAutoSpeak(!autoSpeak);
+                    if (isSpeaking) stopSpeaking();
+                  }}
+                >
+                  {autoSpeak ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                </Button>
+              )}
+
+              {/* Voice selector */}
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 px-2 rounded-full text-xs ${showVoiceSelector ? 'bg-primary/20' : 'text-muted-foreground'} ${isGuest ? 'opacity-60' : ''}`}
+                  onClick={() => {
+                    if (isGuest) {
+                      toast({ description: '🔒 Log in to choose your voice' });
+                    } else {
+                      setShowVoiceSelector(!showVoiceSelector);
+                    }
+                  }}
+                >
+                  <Volume2 className="w-3 h-3 mr-1" />
+                  <span className="hidden sm:inline">{VOICE_OPTIONS.find(v => v.id === selectedVoice)?.name || 'Voice'}</span>
+                  {isGuest && <Lock className="w-3 h-3 ml-1" />}
+                </Button>
+                
+                {showVoiceSelector && !isGuest && (
+                  <div className="absolute bottom-full mb-2 left-0 bg-popover border border-border rounded-lg shadow-lg p-2 min-w-[140px] z-50">
+                    <div className="text-xs text-muted-foreground mb-2 px-2">Select Voice</div>
+                    {VOICE_OPTIONS.map((voice) => (
+                      <button
+                        key={voice.id}
+                        onClick={() => {
+                          setSelectedVoice(voice.id);
+                          setShowVoiceSelector(false);
+                          toast({ description: `Voice changed to ${voice.name}` });
+                        }}
+                        className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted transition-colors ${
+                          selectedVoice === voice.id ? 'bg-primary/10 text-primary' : ''
+                        }`}
+                      >
+                        {voice.name} <span className="text-xs text-muted-foreground">({voice.gender})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <span className="text-[10px] sm:text-xs text-muted-foreground">
+              {remainingImages} {t('imagesRemaining')}
+            </span>
+          </div>
         </form>
       )}
     </div>
