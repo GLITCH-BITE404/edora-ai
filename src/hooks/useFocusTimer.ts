@@ -19,7 +19,7 @@ export function useFocusTimer(user: User | null, onComplete?: (minutes: number) 
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [topic, setTopic] = useState<string>('');
   
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
