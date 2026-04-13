@@ -146,7 +146,7 @@ Remember: You have memory of this conversation. Use it to give better, contextua
       }
     }
 
-    console.log(`User ${user.id} request in ${language}, messages: ${messages.length}, has images: ${(images && images.length > 0) || messages.some(m => m.images && m.images.length > 0)}`);
+    console.log(`User ${userId} request in ${language}, messages: ${messages.length}, has images: ${(images && images.length > 0) || messages.some(m => m.images && m.images.length > 0)}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
